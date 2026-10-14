@@ -1,0 +1,12 @@
+{
+  "idf.currentSetup": "/Users/mohamed-elahmady/.espressif/v6.0.2/esp-idf",
+  "clangd.path": "/Users/mohamed-elahmady/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/Users/mohamed-elahmady/Downloads/Embedded-Systems-Team/SARE-SHELF-CONTROL/build"
+  ],
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32"
+  }
+}
