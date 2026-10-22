@@ -104,8 +104,6 @@ main.c
 | `sim7600_port.c`     | `sim7600_port.h` only                      | ECUAL |
 | `sim7600_gps.h`      | `mcal_std_types.h` + `sim7600_port.h`      | ECUAL |
 | `sim7600_gps.c`      | `sim7600_gps.h` + `string.h` + `stm32f4xx_hal.h` | ECUAL |
-| `sim7600_gps_debug.h` | `mcal_std_types.h` + `sim7600_port.h`     | ECUAL (test) |
-| `sim7600_gps_debug.c` | `sim7600_gps_debug.h` + `sim7600_gps.h` + `string.h` + `stm32f4xx_hal.h` | ECUAL (test) |
 | `sim7600_port_cfg.h` | _(none — pure config macros)_              | ECUAL |
 | `hx711.h`            | `mcal_std_types.h` only                    | ECUAL |
 | `hx711.c`            | `hx711.h` only                             | ECUAL |
@@ -166,7 +164,6 @@ main.c
 | `Core/Src/ECUAL/ecual_init.c`             | `"../../Inc/ECUAL/ecual_init.h"`                |
 | `Core/Src/ECUAL/SIM7600EH/sim7600_port.c` | `"../../../Inc/ECUAL/SIM7600EH/sim7600_port.h"` |
 | `Core/Src/ECUAL/SIM7600EH/sim7600_gps.c`  | `"../../../Inc/ECUAL/SIM7600EH/sim7600_gps.h"`  |
-| `Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.c` | `"../../../Inc/ECUAL/SIM7600EH/sim7600_gps_debug.h"` |
 | `Core/Src/ECUAL/Hx711/hx711.c`            | _(via `hx711.h`)_                               |
 | `Core/Src/ECUAL/NFC/nfc.c`                | _(via `nfc.h`)_                                 |
 
@@ -189,8 +186,7 @@ SARE-CART-CONTROL/
 │   │   │   ├── SIM7600EH/
 │   │   │   │   ├── sim7600_port.h
 │   │   │   │   ├── sim7600_port_cfg.h
-│   │   │   │   ├── sim7600_gps.h        (NMEA parser / GPS layer - Phase 2)
-│   │   │   │   └── sim7600_gps_debug.h  (TEST-ONLY dump - Phase 3, delete later)
+│   │   │   │   └── sim7600_gps.h        (NMEA parser / GPS layer)
 │   │   │   ├── Hx711/
 │   │   │   │   └── hx711.h
 │   │   │   └── NFC/
@@ -209,8 +205,7 @@ SARE-CART-CONTROL/
 │           ├── ecual_init.c
 │           ├── SIM7600EH/
 │           │   ├── sim7600_port.c
-│           │   ├── sim7600_gps.c
-│           │   └── sim7600_gps_debug.c      (TEST-ONLY dump - Phase 3, delete later)
+│           │   └── sim7600_gps.c
 │           ├── Hx711/
 │           │   └── hx711.c
 │           └── NFC/
@@ -236,7 +231,7 @@ SARE-CART-CONTROL/
 | **HX711**     | Load Cell ADC (Weight) | GPIO 2-wire                                                                                             | `HAL_GPIO_*` or register-level                                    |
 | **NFC**       | NFC Reader             | SPI or I2C                                                                                              | `HAL_SPI_*` / `HAL_I2C_*` (TBD)                                   |
 
-> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2). `sim7600_gps_debug` (raw+parsed dump over USART2 PA2/PA3) — **test-only** (Phase 3), wired in `main.c` USER-CODE blocks; delete `sim7600_gps_debug.{h,c}` + its `main.c` lines when testing is done. HX711 & NFC — headers pending implementation.
+> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2), integrated into `ecual_init` and reporting over USART2 in `main.c`. HX711 & NFC — headers pending implementation.
 
 ---
 

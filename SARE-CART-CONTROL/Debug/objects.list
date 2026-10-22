@@ -1,5 +1,4 @@
 "./Core/Src/ECUAL/SIM7600EH/sim7600_gps.o"
-"./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.o"
 "./Core/Src/ECUAL/SIM7600EH/sim7600_port.o"
 "./Core/Src/ECUAL/ecual_init.o"
 "./Core/Src/gpio.o"
