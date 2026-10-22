@@ -7,6 +7,7 @@
 
 #include "../MCAL/mcal_std_types.h"
 #include "SIM7600EH/sim7600_port.h"
+#include "SIM7600EH/sim7600_gps.h"
 
 /******************* Section 2 : Macros Declarations *******************/
 

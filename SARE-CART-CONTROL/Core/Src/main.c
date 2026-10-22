@@ -18,10 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,7 +57,60 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void print_gps_data(const sim7600_gps_data_t *gps)
+{
+  char buffer[128];
 
+  /* Header */
+  HAL_UART_Transmit(&huart2, (uint8_t *)"\r\n--- GPS REPORT ---\r\n", 22, 100);
+
+  /* Fix Status & Satellites */
+  snprintf(buffer, sizeof(buffer), "Fix: %s | Q: %u | Sats: %u (in use) / %u (in view) | HDOP: %ld.%02ld\r\n",
+           gps->valid ? "VALID" : "NO FIX",
+           (unsigned int)gps->fix_quality,
+           (unsigned int)gps->sats_used,
+           (unsigned int)gps->sats_visible,
+           (long)(gps->hdop_cd / 100),
+           (long)(gps->hdop_cd % 100));
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+
+  /* Coordinates (Fixed-point: lat_e6 / 1000000, lon_e6 / 1000000) */
+  int32_t lat_int = gps->lat_e6 / 1000000;
+  int32_t lat_frac = gps->lat_e6 % 1000000;
+  if (lat_frac < 0) lat_frac = -lat_frac;
+
+  int32_t lon_int = gps->lon_e6 / 1000000;
+  int32_t lon_frac = gps->lon_e6 % 1000000;
+  if (lon_frac < 0) lon_frac = -lon_frac;
+
+  snprintf(buffer, sizeof(buffer), "Lat: %ld.%06ld %c | Lon: %ld.%06ld %c\r\n",
+           (long)lat_int, (long)lat_frac, (gps->lat_e6 >= 0) ? 'N' : 'S',
+           (long)lon_int, (long)lon_frac, (gps->lon_e6 >= 0) ? 'E' : 'W');
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+
+  /* Altitude & Speed */
+  int32_t alt_int = gps->alt_cm / 100;
+  int32_t alt_frac = gps->alt_cm % 100;
+  if (alt_frac < 0) alt_frac = -alt_frac;
+
+  int32_t spd_int = gps->speed_ckmh / 100;
+  int32_t spd_frac = gps->speed_ckmh % 100;
+  if (spd_frac < 0) spd_frac = -spd_frac;
+
+  snprintf(buffer, sizeof(buffer), "Alt: %ld.%02ld m | Speed: %ld.%02ld km/h | Course: %ld.%02ld deg\r\n",
+           (long)alt_int, (long)alt_frac,
+           (long)spd_int, (long)spd_frac,
+           (long)(gps->course_cdeg / 100), (long)(gps->course_cdeg % 100));
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+
+  /* UTC Time & Date */
+  snprintf(buffer, sizeof(buffer), "UTC Time: %s | Date: %s\r\n",
+           gps->utc_time[0] ? gps->utc_time : "--:--:--",
+           gps->utc_date[0] ? gps->utc_date : "--/--/--");
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+
+  HAL_UART_Transmit(&huart2, (uint8_t *)"--------------------\r\n", 22, 100);
+}
 /* USER CODE END 0 */
 
 /**
@@ -84,17 +141,45 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  /* Initialize ECUAL layer (SIM7600 GPS module on USART1) */
+  if (E_OK != ecual_init())
+  {
+    const char err_msg[] = "ECUAL GPS Init FAILED! Check module power/wiring.\r\n";
+    HAL_UART_Transmit(&huart2, (uint8_t *)err_msg, (uint16_t)strlen(err_msg), 100);
+  }
+  else
+  {
+    const char ok_msg[] = "ECUAL GPS Init OK. Starting standard sequence...\r\n";
+    HAL_UART_Transmit(&huart2, (uint8_t *)ok_msg, (uint16_t)strlen(ok_msg), 100);
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t last_gps_report_tick = 0;
+  sim7600_gps_data_t gps_data;
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /* 1) Run GPS service task (non-blocking: assembles NMEA sentences and parses them) */
+    sim7600_gps_task();
+
+    /* 2) Periodic report over UART2 every 1000 ms */
+    if ((HAL_GetTick() - last_gps_report_tick) >= 1000U)
+    {
+      last_gps_report_tick = HAL_GetTick();
+
+      if (E_OK == sim7600_gps_get_data(&gps_data))
+      {
+        print_gps_data(&gps_data);
+      }
+    }
   }
   /* USER CODE END 3 */
 }
