@@ -27,6 +27,7 @@ Core/Src/ECUAL/SIM7600EH/sim7600_port.o: \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h \
+ ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Src/ECUAL/SIM7600EH/../../../Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h
 ../Core/Src/ECUAL/SIM7600EH/../../../Inc/ECUAL/SIM7600EH/sim7600_port.h:
 ../Core/Src/ECUAL/SIM7600EH/../../../Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h:
@@ -55,4 +56,5 @@ Core/Src/ECUAL/SIM7600EH/sim7600_port.o: \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Core/Src/ECUAL/SIM7600EH/../../../Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h:

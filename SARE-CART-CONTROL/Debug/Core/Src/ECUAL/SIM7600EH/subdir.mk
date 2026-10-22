@@ -5,12 +5,18 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Core/Src/ECUAL/SIM7600EH/sim7600_gps.c \
+../Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.c \
 ../Core/Src/ECUAL/SIM7600EH/sim7600_port.c 
 
 OBJS += \
+./Core/Src/ECUAL/SIM7600EH/sim7600_gps.o \
+./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.o \
 ./Core/Src/ECUAL/SIM7600EH/sim7600_port.o 
 
 C_DEPS += \
+./Core/Src/ECUAL/SIM7600EH/sim7600_gps.d \
+./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.d \
 ./Core/Src/ECUAL/SIM7600EH/sim7600_port.d 
 
 
@@ -21,7 +27,7 @@ Core/Src/ECUAL/SIM7600EH/%.o Core/Src/ECUAL/SIM7600EH/%.su Core/Src/ECUAL/SIM760
 clean: clean-Core-2f-Src-2f-ECUAL-2f-SIM7600EH
 
 clean-Core-2f-Src-2f-ECUAL-2f-SIM7600EH:
-	-$(RM) ./Core/Src/ECUAL/SIM7600EH/sim7600_port.cyclo ./Core/Src/ECUAL/SIM7600EH/sim7600_port.d ./Core/Src/ECUAL/SIM7600EH/sim7600_port.o ./Core/Src/ECUAL/SIM7600EH/sim7600_port.su
+	-$(RM) ./Core/Src/ECUAL/SIM7600EH/sim7600_gps.cyclo ./Core/Src/ECUAL/SIM7600EH/sim7600_gps.d ./Core/Src/ECUAL/SIM7600EH/sim7600_gps.o ./Core/Src/ECUAL/SIM7600EH/sim7600_gps.su ./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.cyclo ./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.d ./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.o ./Core/Src/ECUAL/SIM7600EH/sim7600_gps_debug.su ./Core/Src/ECUAL/SIM7600EH/sim7600_port.cyclo ./Core/Src/ECUAL/SIM7600EH/sim7600_port.d ./Core/Src/ECUAL/SIM7600EH/sim7600_port.o ./Core/Src/ECUAL/SIM7600EH/sim7600_port.su
 
 .PHONY: clean-Core-2f-Src-2f-ECUAL-2f-SIM7600EH
 
