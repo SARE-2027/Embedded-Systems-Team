@@ -3,7 +3,6 @@
 #include "../../Inc/ECUAL/ecual_init.h"
 
 /******************* Section 1 : Variables Definitions *******************/
-NFC_Handle_t g_nfc_handle;
 
 /* GPS Channel Pin & Hardware Mapping */
 #define ECUAL_GPS_UART_ID        (SIM7600_UART_1)
@@ -13,9 +12,11 @@ NFC_Handle_t g_nfc_handle;
 #define ECUAL_GPS_RX_BUF_BYTES   (1024U)
 #define ECUAL_GPS_NVIC_PRI       (8U)
 
-/* NFC (PN532) hardware mapping */
-#define ECUAL_NFC_SPI_ID         (MCAL_SPI_1)
-#define ECUAL_NFC_CS_ID          (MCAL_GPIO_NFC_CS)
+/* HX711 Load Cell Pin & Calibration Mapping */
+#define ECUAL_HX711_SCK_PIN      (HX711_PIN(B, 0))   /* any pin: HX711_PIN(<port letter>, <number>) */
+#define ECUAL_HX711_DOUT_PIN     (HX711_PIN(B, 1))
+#define ECUAL_HX711_GAIN         (HX711_GAIN_128)
+#define ECUAL_HX711_SCALE_CPK    (100000)       /* Raw counts per kg - PLACEHOLDER, run hx711_calibrate() */
 
 /* GPS RX Ring Buffer (storage for port IRQ driver) */
 static uint8 m_gps_rx_buf[ECUAL_GPS_RX_BUF_BYTES];
@@ -45,6 +46,19 @@ static sim7600_gps_cfg_t m_gps_cfg = {
     .checksum_strict = true
 };
 
+/* HX711 Port Configuration & Instance */
+static const hx711_cfg_t m_hx711_cfg = {
+    .sck_pin   = ECUAL_HX711_SCK_PIN,
+    .dout_pin  = ECUAL_HX711_DOUT_PIN,
+    .gain      = ECUAL_HX711_GAIN
+};
+
+static hx711_t m_hx711;
+
+/* Track successful initialization before dispatching component tasks/APIs. */
+static bool m_gps_initialized = false;
+static bool m_hx711_initialized = false;
+
 /************** Section 2 : Helper Functions Declarations **************/
 
 /*************** Section 3 : Software Interfaces Definitions (APIs) ****************/
@@ -52,16 +66,58 @@ static sim7600_gps_cfg_t m_gps_cfg = {
 Std_ReturnType ecual_init(void) {
     Std_ReturnType Retval = E_OK;
 
+    m_gps_initialized = false;
+    m_hx711_initialized = false;
+
     /* Initialize SIM7600 GPS Module */
-    Retval = sim7600_gps_init(&m_gps_cfg);
-    if (Retval != E_OK) {
-        return Retval;
+    if (E_OK == sim7600_gps_init(&m_gps_cfg)) {
+        m_gps_initialized = true;
+    }
+    else {
+        Retval = E_NOT_OK;
     }
 
-    /* Initialize PN532 NFC Module over SPI1 with PB0 Chip Select */
-    Retval = ECUAL_NFC_Init(&g_nfc_handle, MCAL_SPI_1, MCAL_GPIO_NFC_CS);
+    /* Initialize HX711 Load Cell ADC */
+    if (E_OK == hx711_init(&m_hx711, &m_hx711_cfg)) {
+        m_hx711_initialized = true;
+        (void)hx711_set_scale(&m_hx711, ECUAL_HX711_SCALE_CPK);
+    }
+    else {
+        Retval = E_NOT_OK;
+    }
 
     return Retval;
+}
+
+void ecual_task(void) {
+    /* Keep component service routines behind the ECUAL layer boundary. */
+    if (m_gps_initialized) {
+        sim7600_gps_task();
+    }
+    if (m_hx711_initialized) {
+        hx711_task(&m_hx711);
+    }
+}
+
+Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out) {
+    if (!m_gps_initialized || (NULL == out)) {
+        return E_NOT_OK;
+    }
+    return sim7600_gps_get_data(out);
+}
+
+Std_ReturnType ecual_hx711_tare(uint8 samples) {
+    if (!m_hx711_initialized) {
+        return E_NOT_OK;
+    }
+    return hx711_tare(&m_hx711, samples);
+}
+
+bool ecual_hx711_get_weight_mg(int32 *weight_mg) {
+    if (!m_hx711_initialized) {
+        return false;
+    }
+    return hx711_get_latest_weight_mg(&m_hx711, weight_mg);
 }
 
 /************** Section 4 : Helper Functions Definitions **************/
