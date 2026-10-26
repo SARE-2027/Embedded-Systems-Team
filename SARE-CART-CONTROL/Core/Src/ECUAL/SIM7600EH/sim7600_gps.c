@@ -251,59 +251,49 @@ static bool m_parse_latlon(const char *f, uint8 len, uint8 deg_digits,
 {
     int32  deg        = 0;
     int32  mm_scaled4 = 0;
-    int32  minutes_e6;
+    int32  minutes_e6 = 0;
     const char *dot   = NULL;
     uint8  int_digits = 0U;
     uint8  i;
 
-    if (((len < (uint8)(deg_digits + 3U))) ||          /* "ddmm.mm" minimums   */
+    /* Minimum length: deg_digits + 2 digits of minutes + dot + 1 frac digit (e.g. "ddmm.m") */
+    if ((len < (uint8)(deg_digits + 4U)) ||
         ((NMEA_NORTH != dir) && (NMEA_SOUTH != dir) &&
          (NMEA_EAST  != dir) && (NMEA_WEST   != dir)))
     {
         return false;
     }
 
-    /* Locate the decimal point; count integer digits before it */
+    /* Locate the decimal point */
     for (i = 0U; i < len; i++)
     {
         if ('.' == f[i]) { dot = &f[i]; break; }
     }
     int_digits = (NULL == dot) ? len : (uint8)(dot - f);
 
-    if (int_digits != deg_digits)
+    /* In standard NMEA:
+     * Latitude:  ddmm.mmmm  -> int_digits = deg_digits(2) + 2(minutes) = 4
+     * Longitude: dddmm.mmmm -> int_digits = deg_digits(3) + 2(minutes) = 5
+     */
+    if (int_digits != (uint8)(deg_digits + 2U))
     {
-        return false;    /* dd is always 2, ddd is always 3   */
+        return false;
     }
 
-    if ('.' == f[deg_digits])   /* normative format */
-    {
-        const uint8 frac_len = (uint8)(len - deg_digits - 1U);
-        if (0U == frac_len) { return false; }
-        /* Parse "mmmm" scaled by 10^(frac in string), then normalize to 1e4 */
-        {
-            int32 scaled = 0;
-            if (!m_dec_scaled(&f[deg_digits + 1], frac_len, 4U, &scaled))
-            {
-                return false;
-            }
-            mm_scaled4 = scaled;
-        }
-    }
-    else    /* No dot: "ddmmyyyy" style means minutes are 2-digit integer    */
-    {
-        if (!m_dec_scaled(&f[deg_digits], (uint8)(len - deg_digits), 4U, &mm_scaled4))
-        {
-            return false;
-        }
-    }
-
-    /* Integer degrees part */
+    /* 1. Parse integer degrees (first deg_digits characters) */
     if (!m_dec_scaled(f, deg_digits, 0U, &deg))
     {
         return false;
     }
 
-    minutes_e6 = ((mm_scaled4 * 10) + 3) / 6;    /* Rounded to micro-degrees */
+    /* 2. Parse minutes (from f[deg_digits] to end of field), scaled to 4 decimals */
+    if (!m_dec_scaled(&f[deg_digits], (uint8)(len - deg_digits), 4U, &mm_scaled4))
+    {
+        return false;
+    }
+
+    /* 3. Convert minutes to micro-degrees: (mm_scaled4 / 10000) / 60 * 1000000 = (mm_scaled4 * 10) / 6 */
+    minutes_e6 = ((mm_scaled4 * 10) + 3) / 6;
 
     *out_e6 = (int32)((uint32)deg * 1000000UL);
     *out_e6 += minutes_e6;
@@ -893,6 +883,8 @@ Std_ReturnType sim7600_gps_gnss_on(uint32 per_cmd_timeout_ms)
 #if SIM7600_GPS_USE_ECHO_OFF
     if (!m_gps.echo_off_done)
     {
+        /* Send AT ping to sync autobaud detector on SIM7600 */
+        (void)sim7600_gps_send_at("AT", NULL, 0U, 300UL);
         (void)sim7600_gps_send_at(SIM7600_GPS_CMD_ECHO_OFF, NULL, 0U, per_cmd_timeout_ms);
         m_gps.echo_off_done = true;
     }
@@ -900,14 +892,19 @@ Std_ReturnType sim7600_gps_gnss_on(uint32 per_cmd_timeout_ms)
 
     (void)sim7600_port_rx_flush(m_gps.port_copy.uart_id);
 
+    /* Power on GNSS subsystem (Primary: AT+CGNSSPWR=1, Fallback: AT+CGPS=1) */
     if (E_OK != sim7600_gps_send_at(SIM7600_GPS_CMD_GNSS_POWER_ON, NULL, 0U, per_cmd_timeout_ms))
     {
-        ret = E_NOT_OK;
+        if (E_OK != sim7600_gps_send_at("AT+CGPS=1", NULL, 0U, per_cmd_timeout_ms))
+        {
+            ret = E_NOT_OK;
+        }
     }
 
+    /* Route NMEA to UART (Primary: AT+CGNSSTST=1, Fallback: AT+CGPSNMEA=31) */
     if (E_OK != sim7600_gps_send_at(SIM7600_GPS_CMD_NMEA_OUT_ON, NULL, 0U, per_cmd_timeout_ms))
     {
-        ret = E_NOT_OK;
+        (void)sim7600_gps_send_at("AT+CGPSNMEA=31", NULL, 0U, per_cmd_timeout_ms);
     }
 
     return ret;

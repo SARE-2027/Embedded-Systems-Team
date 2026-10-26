@@ -57,72 +57,97 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static void print_gps_data(const sim7600_gps_data_t *gps)
+static void print_telemetry_report(const sim7600_gps_data_t *gps, bool gps_has_data,
+                                   int32_t weight_mg, bool weight_has_data)
 {
-  char buffer[128];
+  char report[512];
+  int len = 0;
 
   /* Header */
-  HAL_UART_Transmit(&huart2, (uint8_t *)"\r\n--- GPS REPORT ---\r\n", 22, 100);
+  len += snprintf(report + len, sizeof(report) - len,
+                  "\r\n========================================\r\n"
+                  "--- GPS Reads ---\r\n");
 
-  /* Fix Status & Satellites */
-  snprintf(buffer, sizeof(buffer), "Fix: %s | Q: %u | Sats: %u (in use) / %u (in view) | HDOP: %ld.%02ld\r\n",
-           gps->valid ? "VALID" : "NO FIX",
-           (unsigned int)gps->fix_quality,
-           (unsigned int)gps->sats_used,
-           (unsigned int)gps->sats_visible,
-           (long)(gps->hdop_cd / 100),
-           (long)(gps->hdop_cd % 100));
-  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+  if (gps_has_data && (len < (int)sizeof(report)))
+  {
+    /* Fix & Satellites */
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Fix Status : %s | Quality: %u\r\n"
+                    "Satellites : %u in use / %u in view | HDOP: %ld.%02ld\r\n",
+                    gps->valid ? "VALID (3D Fix)" : "NO FIX (Searching satellites...)",
+                    (unsigned int)gps->fix_quality,
+                    (unsigned int)gps->sats_used,
+                    (unsigned int)gps->sats_visible,
+                    (long)(gps->hdop_cd / 100),
+                    (long)(gps->hdop_cd % 100));
 
-  /* Coordinates (Fixed-point: lat_e6 / 1000000, lon_e6 / 1000000) */
-  int32_t lat_int = gps->lat_e6 / 1000000;
-  int32_t lat_frac = gps->lat_e6 % 1000000;
-  if (lat_frac < 0) lat_frac = -lat_frac;
+    /* Coordinates (Fixed-point: lat_e6 / 1000000, lon_e6 / 1000000) */
+    int32_t abs_lat = (gps->lat_e6 < 0) ? -gps->lat_e6 : gps->lat_e6;
+    int32_t lat_int = abs_lat / 1000000;
+    int32_t lat_frac = abs_lat % 1000000;
 
-  int32_t lon_int = gps->lon_e6 / 1000000;
-  int32_t lon_frac = gps->lon_e6 % 1000000;
-  if (lon_frac < 0) lon_frac = -lon_frac;
+    int32_t abs_lon = (gps->lon_e6 < 0) ? -gps->lon_e6 : gps->lon_e6;
+    int32_t lon_int = abs_lon / 1000000;
+    int32_t lon_frac = abs_lon % 1000000;
 
-  snprintf(buffer, sizeof(buffer), "Lat: %ld.%06ld %c | Lon: %ld.%06ld %c\r\n",
-           (long)lat_int, (long)lat_frac, (gps->lat_e6 >= 0) ? 'N' : 'S',
-           (long)lon_int, (long)lon_frac, (gps->lon_e6 >= 0) ? 'E' : 'W');
-  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Coordinates: Lat %ld.%06ld %c | Lon %ld.%06ld %c\r\n",
+                    (long)lat_int, (long)lat_frac, (gps->lat_e6 >= 0) ? 'N' : 'S',
+                    (long)lon_int, (long)lon_frac, (gps->lon_e6 >= 0) ? 'E' : 'W');
 
-  /* Altitude & Speed */
-  int32_t alt_int = gps->alt_cm / 100;
-  int32_t alt_frac = gps->alt_cm % 100;
-  if (alt_frac < 0) alt_frac = -alt_frac;
+    /* Altitude & Speed & Course */
+    int32_t abs_alt = (gps->alt_cm < 0) ? -gps->alt_cm : gps->alt_cm;
+    int32_t alt_int = abs_alt / 100;
+    int32_t alt_frac = abs_alt % 100;
 
-  int32_t spd_int = gps->speed_ckmh / 100;
-  int32_t spd_frac = gps->speed_ckmh % 100;
-  if (spd_frac < 0) spd_frac = -spd_frac;
+    int32_t abs_spd = (gps->speed_ckmh < 0) ? -gps->speed_ckmh : gps->speed_ckmh;
+    int32_t spd_int = abs_spd / 100;
+    int32_t spd_frac = abs_spd % 100;
 
-  snprintf(buffer, sizeof(buffer), "Alt: %ld.%02ld m | Speed: %ld.%02ld km/h | Course: %ld.%02ld deg\r\n",
-           (long)alt_int, (long)alt_frac,
-           (long)spd_int, (long)spd_frac,
-           (long)(gps->course_cdeg / 100), (long)(gps->course_cdeg % 100));
-  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Altitude   : %ld.%02ld m | Speed: %ld.%02ld km/h | Course: %ld.%02ld deg\r\n"
+                    "UTC Time   : %s | Date: %s\r\n",
+                    (long)alt_int, (long)alt_frac,
+                    (long)spd_int, (long)spd_frac,
+                    (long)(gps->course_cdeg / 100), (long)(gps->course_cdeg % 100),
+                    gps->utc_time[0] ? gps->utc_time : "--:--:--",
+                    gps->utc_date[0] ? gps->utc_date : "--/--/--");
+  }
+  else
+  {
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Status     : WAITING FOR GPS DATA...\r\n");
+  }
 
-  /* UTC Time & Date */
-  snprintf(buffer, sizeof(buffer), "UTC Time: %s | Date: %s\r\n",
-           gps->utc_time[0] ? gps->utc_time : "--:--:--",
-           gps->utc_date[0] ? gps->utc_date : "--/--/--");
-  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+  /* Load Cell Reads */
+  len += snprintf(report + len, sizeof(report) - len,
+                  "\r\n--- Load Cell Reads ---\r\n");
 
-  HAL_UART_Transmit(&huart2, (uint8_t *)"--------------------\r\n", 22, 100);
-}
+  if (weight_has_data && (len < (int)sizeof(report)))
+  {
+    int32_t abs_mg = (weight_mg < 0) ? -weight_mg : weight_mg;
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Weight     : %c%ld.%03ld g (%ld mg)\r\n"
+                    "Status     : OK (Filtered)\r\n",
+                    (weight_mg < 0) ? '-' : ' ',
+                    (long)(abs_mg / 1000),
+                    (long)(abs_mg % 1000),
+                    (long)weight_mg);
+  }
+  else
+  {
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Status     : WAITING FOR LOAD CELL SAMPLES...\r\n");
+  }
 
-static void print_weight(int32_t weight_mg)
-{
-  char buffer[48];
-  int32_t abs_mg = (weight_mg < 0) ? -weight_mg : weight_mg;
+  len += snprintf(report + len, sizeof(report) - len,
+                  "========================================\r\n");
 
-  /* Fixed-point: weight_mg / 1000 = grams */
-  snprintf(buffer, sizeof(buffer), "Weight: %c%ld.%03ld g\r\n",
-           (weight_mg < 0) ? '-' : ' ',
-           (long)(abs_mg / 1000),
-           (long)(abs_mg % 1000));
-  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+  /* Single atomic transmit: eliminates interleaving & reduces CPU blocking */
+  if (len > 0)
+  {
+    HAL_UART_Transmit(&huart2, (uint8_t *)report, (uint16_t)len, 500);
+  }
 }
 /* USER CODE END 0 */
 
@@ -157,31 +182,47 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  /* Initialize ECUAL layer (SIM7600 GPS module on USART1) */
+  /* Initialize ECUAL layer (SIM7600 GPS module on USART1, HX711 on PB0/PB1) */
   if (E_OK != ecual_init())
   {
-    const char err_msg[] = "ECUAL GPS Init FAILED! Check module power/wiring.\r\n";
-    HAL_UART_Transmit(&huart2, (uint8_t *)err_msg, (uint16_t)strlen(err_msg), 100);
+    char boot_msg[128];
+    snprintf(boot_msg, sizeof(boot_msg),
+             "ECUAL Init Warning: GPS=%s, HX711=%s\r\n",
+             ecual_gps_is_ready() ? "OK" : "FAIL",
+             ecual_hx711_is_ready() ? "OK" : "FAIL");
+    HAL_UART_Transmit(&huart2, (uint8_t *)boot_msg, (uint16_t)strlen(boot_msg), 100);
   }
   else
   {
-    const char ok_msg[] = "ECUAL GPS Init OK. Starting standard sequence...\r\n";
+    const char ok_msg[] = "ECUAL Init OK: GPS & Load Cell modules online.\r\n";
     HAL_UART_Transmit(&huart2, (uint8_t *)ok_msg, (uint16_t)strlen(ok_msg), 100);
   }
 
   /* Zero the load cell (cart must be empty at boot) */
-  if (E_OK != ecual_hx711_tare(10U))
+  if (ecual_hx711_is_ready())
   {
-    const char tare_err[] = "HX711 tare FAILED! Check load cell wiring.\r\n";
-    HAL_UART_Transmit(&huart2, (uint8_t *)tare_err, (uint16_t)strlen(tare_err), 100);
+    if (E_OK != ecual_hx711_tare(10U))
+    {
+      const char tare_err[] = "HX711 tare FAILED! Check load cell wiring.\r\n";
+      HAL_UART_Transmit(&huart2, (uint8_t *)tare_err, (uint16_t)strlen(tare_err), 100);
+    }
+    else
+    {
+      const char tare_ok[] = "HX711 tare OK: Load cell zeroed successfully.\r\n";
+      HAL_UART_Transmit(&huart2, (uint8_t *)tare_ok, (uint16_t)strlen(tare_ok), 100);
+    }
   }
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t last_gps_report_tick = 0;
+  uint32_t last_report_tick = 0;
   sim7600_gps_data_t gps_data;
   int32_t weight_mg = 0;
+  bool gps_ok = false;
+  bool weight_ok = false;
+
+  memset(&gps_data, 0, sizeof(gps_data));
 
   while (1)
   {
@@ -191,20 +232,15 @@ int main(void)
     /* Service initialized components through the ECUAL gateway (non-blocking). */
     ecual_task();
 
-    /* 2) Periodic report over UART2 every 1000 ms */
-    if ((HAL_GetTick() - last_gps_report_tick) >= 1000U)
+    /* Periodic report over UART2 every 1000 ms */
+    if ((HAL_GetTick() - last_report_tick) >= 1000U)
     {
-      last_gps_report_tick = HAL_GetTick();
+      last_report_tick = HAL_GetTick();
 
-      if (E_OK == ecual_gps_get_data(&gps_data))
-      {
-        print_gps_data(&gps_data);
-      }
+      gps_ok = (E_OK == ecual_gps_get_data(&gps_data));
+      weight_ok = ecual_hx711_get_weight_mg(&weight_mg);
 
-      if (ecual_hx711_get_weight_mg(&weight_mg))
-      {
-        print_weight(weight_mg);
-      }
+      print_telemetry_report(&gps_data, gps_ok, weight_mg, weight_ok);
     }
   }
   /* USER CODE END 3 */

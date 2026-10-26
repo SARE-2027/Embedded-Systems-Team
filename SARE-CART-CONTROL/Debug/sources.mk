@@ -22,6 +22,7 @@ C_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+Core/Src/ECUAL/Hx711 \
 Core/Src/ECUAL/SIM7600EH \
 Core/Src/ECUAL \
 Core/Src \
