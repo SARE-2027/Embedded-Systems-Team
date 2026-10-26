@@ -231,7 +231,9 @@ SARE-CART-CONTROL/
 | **HX711**     | Load Cell ADC (Weight) | GPIO 2-wire                                                                                             | `HAL_GPIO_*` or register-level                                    |
 | **NFC**       | NFC Reader             | SPI or I2C                                                                                              | `HAL_SPI_*` / `HAL_I2C_*` (TBD)                                   |
 
-> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2), integrated into `ecual_init` and reporting over USART2 in `main.c`. HX711 & NFC — headers pending implementation.
+> **HX711 pin mapping (set in `ecual_init.c`):** PD_SCK → `HX711_PIN(B, 0)`, DOUT → `HX711_PIN(B, 1)`, gain 128 — any GPIO can be selected with `HX711_PIN(<port letter>, <number>)`. The driver configures these GPIOs itself (no CubeMX change needed). Fixed-point API: scale in raw counts/kg, weight in mg.
+
+> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2), integrated into `ecual_init` and reporting over USART2 in `main.c`. `hx711` (load-cell ADC) — **implemented & integrated** behind the ECUAL gateway; `ecual_init.c` owns the driver instance and services it through `ecual_task()`. The APP layer uses `ecual_hx711_tare()` and `ecual_hx711_get_weight_mg()` without accessing the HX711 handle directly; weight is reported over USART2 in `main.c`. NFC — header pending implementation.
 
 ---
 
