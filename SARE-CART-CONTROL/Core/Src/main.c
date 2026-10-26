@@ -58,12 +58,13 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static void print_telemetry_report(const sim7600_gps_data_t *gps, bool gps_has_data,
+                                   const nfc_card_t *nfc, bool nfc_has_card,
                                    int32_t weight_mg, bool weight_has_data)
 {
-  char report[512];
+  char report[768];
   int len = 0;
 
-  /* Header */
+  /* Header & 1. GPS Reads */
   len += snprintf(report + len, sizeof(report) - len,
                   "\r\n========================================\r\n"
                   "--- GPS Reads ---\r\n");
@@ -119,7 +120,34 @@ static void print_telemetry_report(const sim7600_gps_data_t *gps, bool gps_has_d
                     "Status     : WAITING FOR GPS DATA...\r\n");
   }
 
-  /* Load Cell Reads */
+  /* 2. NFC Reads */
+  len += snprintf(report + len, sizeof(report) - len,
+                  "\r\n--- NFC Reads ---\r\n");
+
+  if (nfc_has_card && (len < (int)sizeof(report)))
+  {
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Card Status: CARD DETECTED\r\n"
+                    "UID Length : %u bytes\r\n"
+                    "UID (HEX)  : ", (unsigned int)nfc->uid_len);
+
+    for (uint8_t i = 0; i < nfc->uid_len && i < NFC_UID_MAX_LEN; i++)
+    {
+      len += snprintf(report + len, sizeof(report) - len,
+                      "%02X%s", nfc->uid[i], (i + 1 < nfc->uid_len) ? ":" : "");
+    }
+
+    len += snprintf(report + len, sizeof(report) - len,
+                    "\r\nSAK (Type) : 0x%02X | ATQA: 0x%04X\r\n",
+                    nfc->sak, nfc->atqa);
+  }
+  else
+  {
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Card Status: NO CARD IN FIELD (Searching...)\r\n");
+  }
+
+  /* 3. Load Cell Reads */
   len += snprintf(report + len, sizeof(report) - len,
                   "\r\n--- Load Cell Reads ---\r\n");
 
@@ -182,19 +210,20 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  /* Initialize ECUAL layer (SIM7600 GPS module on USART1, HX711 on PB0/PB1) */
+  /* Initialize ECUAL layer (SIM7600 GPS on USART1, NFC on SPI1, HX711 on PB0/PB1) */
   if (E_OK != ecual_init())
   {
     char boot_msg[128];
     snprintf(boot_msg, sizeof(boot_msg),
-             "ECUAL Init Warning: GPS=%s, HX711=%s\r\n",
+             "ECUAL Init Warning: GPS=%s, NFC=%s, HX711=%s\r\n",
              ecual_gps_is_ready() ? "OK" : "FAIL",
+             ecual_nfc_is_ready() ? "OK" : "FAIL",
              ecual_hx711_is_ready() ? "OK" : "FAIL");
     HAL_UART_Transmit(&huart2, (uint8_t *)boot_msg, (uint16_t)strlen(boot_msg), 100);
   }
   else
   {
-    const char ok_msg[] = "ECUAL Init OK: GPS & Load Cell modules online.\r\n";
+    const char ok_msg[] = "ECUAL Init OK: GPS, NFC & Load Cell modules online.\r\n";
     HAL_UART_Transmit(&huart2, (uint8_t *)ok_msg, (uint16_t)strlen(ok_msg), 100);
   }
 
@@ -218,11 +247,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint32_t last_report_tick = 0;
   sim7600_gps_data_t gps_data;
+  nfc_card_t nfc_card;
   int32_t weight_mg = 0;
   bool gps_ok = false;
+  bool nfc_ok = false;
   bool weight_ok = false;
 
   memset(&gps_data, 0, sizeof(gps_data));
+  memset(&nfc_card, 0, sizeof(nfc_card));
 
   while (1)
   {
@@ -238,9 +270,10 @@ int main(void)
       last_report_tick = HAL_GetTick();
 
       gps_ok = (E_OK == ecual_gps_get_data(&gps_data));
+      nfc_ok = ecual_nfc_get_card(&nfc_card);
       weight_ok = ecual_hx711_get_weight_mg(&weight_mg);
 
-      print_telemetry_report(&gps_data, gps_ok, weight_mg, weight_ok);
+      print_telemetry_report(&gps_data, gps_ok, &nfc_card, nfc_ok, weight_mg, weight_ok);
     }
   }
   /* USER CODE END 3 */

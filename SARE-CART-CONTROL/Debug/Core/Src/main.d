@@ -33,7 +33,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h \
  ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
  ../Core/Inc/ECUAL/Hx711/hx711.h \
- ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h ../Core/Inc/usart.h \
+ ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h \
+ ../Core/Inc/ECUAL/NFC/nfc.h \
+ ../Core/Inc/ECUAL/NFC/../../MCAL/mcal_std_types.h ../Core/Inc/usart.h \
  ../Core/Inc/main.h ../Core/Inc/gpio.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -71,6 +73,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
 ../Core/Inc/ECUAL/Hx711/hx711.h:
 ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h:
+../Core/Inc/ECUAL/NFC/nfc.h:
+../Core/Inc/ECUAL/NFC/../../MCAL/mcal_std_types.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/main.h:
 ../Core/Inc/gpio.h:
