@@ -12,6 +12,7 @@ RM := rm -rf
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/ECUAL/SIM7600EH/subdir.mk
+-include Core/Src/ECUAL/NFC/subdir.mk
 -include Core/Src/ECUAL/Hx711/subdir.mk
 -include Core/Src/ECUAL/subdir.mk
 -include Core/Src/subdir.mk

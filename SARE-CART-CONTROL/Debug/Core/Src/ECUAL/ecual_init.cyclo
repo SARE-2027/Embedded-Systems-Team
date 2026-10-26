@@ -1,7 +1,9 @@
-../Core/Src/ECUAL/ecual_init.c:66:16:ecual_init	3
-../Core/Src/ECUAL/ecual_init.c:92:6:ecual_task	3
-../Core/Src/ECUAL/ecual_init.c:102:6:ecual_gps_is_ready	1
-../Core/Src/ECUAL/ecual_init.c:106:6:ecual_hx711_is_ready	1
-../Core/Src/ECUAL/ecual_init.c:110:16:ecual_gps_get_data	3
-../Core/Src/ECUAL/ecual_init.c:117:16:ecual_hx711_tare	2
-../Core/Src/ECUAL/ecual_init.c:124:6:ecual_hx711_get_weight_mg	2
+../Core/Src/ECUAL/ecual_init.c:87:16:ecual_init	4
+../Core/Src/ECUAL/ecual_init.c:122:6:ecual_task	4
+../Core/Src/ECUAL/ecual_init.c:135:6:ecual_gps_is_ready	1
+../Core/Src/ECUAL/ecual_init.c:139:6:ecual_hx711_is_ready	1
+../Core/Src/ECUAL/ecual_init.c:143:6:ecual_nfc_is_ready	1
+../Core/Src/ECUAL/ecual_init.c:147:16:ecual_gps_get_data	3
+../Core/Src/ECUAL/ecual_init.c:154:16:ecual_hx711_tare	2
+../Core/Src/ECUAL/ecual_init.c:161:6:ecual_hx711_get_weight_mg	2
+../Core/Src/ECUAL/ecual_init.c:168:6:ecual_nfc_get_card	3

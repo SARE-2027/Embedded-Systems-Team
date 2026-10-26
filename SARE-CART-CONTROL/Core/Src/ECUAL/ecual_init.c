@@ -18,6 +18,14 @@
 #define ECUAL_HX711_GAIN         (HX711_GAIN_128)
 #define ECUAL_HX711_SCALE_CPK    (100000)       /* Raw counts per kg - PLACEHOLDER, run hx711_calibrate() */
 
+/* NFC Module Pin & Hardware Mapping */
+#define ECUAL_NFC_SPI_ID         (NFC_SPI_1)
+#define ECUAL_NFC_MOSI_PIN       (NFC_PIN(A, 7))     /* PA7: MOSI */
+#define ECUAL_NFC_MISO_PIN       (NFC_PIN(A, 6))     /* PA6: MISO */
+#define ECUAL_NFC_SCK_PIN        (NFC_PIN(A, 5))     /* PA5: SCK  */
+#define ECUAL_NFC_CS_PIN         (NFC_PIN(A, 4))     /* PA4: CS   */
+#define ECUAL_NFC_BAUD_PRESCALER (NFC_SPI_BAUD_DIV_16)
+
 /* GPS RX Ring Buffer (storage for port IRQ driver) */
 static uint8 m_gps_rx_buf[ECUAL_GPS_RX_BUF_BYTES];
 
@@ -55,9 +63,22 @@ static const hx711_cfg_t m_hx711_cfg = {
 
 static hx711_t m_hx711;
 
+/* NFC Configuration & Instance */
+static const nfc_cfg_t m_nfc_cfg = {
+    .spi_id         = ECUAL_NFC_SPI_ID,
+    .mosi_pin       = ECUAL_NFC_MOSI_PIN,
+    .miso_pin       = ECUAL_NFC_MISO_PIN,
+    .sck_pin        = ECUAL_NFC_SCK_PIN,
+    .cs_pin         = ECUAL_NFC_CS_PIN,
+    .baud_prescaler = ECUAL_NFC_BAUD_PRESCALER
+};
+
+static nfc_t m_nfc;
+
 /* Track successful initialization before dispatching component tasks/APIs. */
 static bool m_gps_initialized = false;
 static bool m_hx711_initialized = false;
+static bool m_nfc_initialized = false;
 
 /************** Section 2 : Helper Functions Declarations **************/
 
@@ -68,6 +89,7 @@ Std_ReturnType ecual_init(void) {
 
     m_gps_initialized = false;
     m_hx711_initialized = false;
+    m_nfc_initialized = false;
 
     /* Initialize SIM7600 GPS Module */
     if (E_OK == sim7600_gps_init(&m_gps_cfg)) {
@@ -86,6 +108,14 @@ Std_ReturnType ecual_init(void) {
         Retval = E_NOT_OK;
     }
 
+    /* Initialize PN532 NFC Module */
+    if (E_OK == nfc_init(&m_nfc, &m_nfc_cfg)) {
+        m_nfc_initialized = true;
+    }
+    else {
+        Retval = E_NOT_OK;
+    }
+
     return Retval;
 }
 
@@ -97,6 +127,9 @@ void ecual_task(void) {
     if (m_hx711_initialized) {
         hx711_task(&m_hx711);
     }
+    if (m_nfc_initialized) {
+        nfc_task(&m_nfc);
+    }
 }
 
 bool ecual_gps_is_ready(void) {
@@ -105,6 +138,10 @@ bool ecual_gps_is_ready(void) {
 
 bool ecual_hx711_is_ready(void) {
     return m_hx711_initialized;
+}
+
+bool ecual_nfc_is_ready(void) {
+    return m_nfc_initialized;
 }
 
 Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out) {
@@ -128,4 +165,12 @@ bool ecual_hx711_get_weight_mg(int32 *weight_mg) {
     return hx711_get_latest_weight_mg(&m_hx711, weight_mg);
 }
 
+bool ecual_nfc_get_card(nfc_card_t *out_card) {
+    if (!m_nfc_initialized || (NULL == out_card)) {
+        return false;
+    }
+    return nfc_get_card(&m_nfc, out_card);
+}
+
 /************** Section 4 : Helper Functions Definitions **************/
+
