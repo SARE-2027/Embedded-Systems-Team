@@ -107,8 +107,8 @@ main.c
 | `sim7600_port_cfg.h` | _(none — pure config macros)_              | ECUAL |
 | `hx711.h`            | `mcal_std_types.h` only                    | ECUAL |
 | `hx711.c`            | `hx711.h` only                             | ECUAL |
-| `nfc.h`              | `mcal_std_types.h` only                    | ECUAL |
-| `nfc.c`              | `nfc.h` only                               | ECUAL |
+| `nfc.h`              | `mcal_std_types.h` + `mcal_spi.h` + `mcal_gpio.h` + `mcal_delay.h` | ECUAL |
+| `nfc.c`              | `nfc.h` + `string.h` (standard C library)  | ECUAL |
 | `mcal_std_types.h`   | `stm32f4xx_hal.h` + std C headers          | MCAL  |
 
 ---
@@ -130,8 +130,15 @@ main.c
 // ECUAL layer — driver headers (e.g. sim7600_port.h)
 #include "../../MCAL/mcal_std_types.h"
 
+// NFC driver header additionally uses MCAL SPI/GPIO/delay interfaces
+#include "../../MCAL/mcal_spi.h"
+#include "../../MCAL/mcal_gpio.h"
+#include "../../MCAL/mcal_delay.h"
+
 // ECUAL layer — driver sources (e.g. sim7600_port.c)
 #include "sim7600_port.h"   // own header only
+
+// nfc.c includes nfc.h and <string.h>; nfc.h declares its MCAL dependencies
 
 // MCAL layer (mcal_std_types.h)
 #include "stm32f4xx_hal.h"
@@ -231,9 +238,7 @@ SARE-CART-CONTROL/
 | **HX711**     | Load Cell ADC (Weight) | GPIO 2-wire                                                                                             | `HAL_GPIO_*` or register-level                                    |
 | **NFC**       | NFC Reader             | SPI or I2C                                                                                              | `HAL_SPI_*` / `HAL_I2C_*` (TBD)                                   |
 
-> **HX711 pin mapping (set in `ecual_init.c`):** PD_SCK → `HX711_PIN(B, 0)`, DOUT → `HX711_PIN(B, 1)`, gain 128 — any GPIO can be selected with `HX711_PIN(<port letter>, <number>)`. The driver configures these GPIOs itself (no CubeMX change needed). Fixed-point API: scale in raw counts/kg, weight in mg.
-
-> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2), integrated into `ecual_init` and reporting over USART2 in `main.c`. `hx711` (load-cell ADC) — **implemented & integrated** behind the ECUAL gateway; `ecual_init.c` owns the driver instance and services it through `ecual_task()`. The APP layer uses `ecual_hx711_tare()` and `ecual_hx711_get_weight_mg()` without accessing the HX711 handle directly; weight is reported over USART2 in `main.c`. NFC — header pending implementation.
+> **Status:** `sim7600_port` (portable UART core) — **implemented & linked** (Phase 1). `sim7600_gps` (NMEA parser / GPS layer) — **implemented & linked** (Phase 2), integrated into `ecual_init` and reporting over USART2 in `main.c`. HX711 — pending implementation; NFC (PN532 SPI driver) — implemented in `Core/Inc/ECUAL/NFC/nfc.h` and `Core/Src/ECUAL/NFC/nfc.c`.
 
 ---
 
