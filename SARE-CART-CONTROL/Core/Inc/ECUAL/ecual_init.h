@@ -8,7 +8,7 @@
 #include "../MCAL/mcal_std_types.h"
 #include "SIM7600EH/sim7600_port.h"
 #include "SIM7600EH/sim7600_gps.h"
-#include "NFC/nfc.h"
+#include "Hx711/hx711.h"
 
 /******************* Section 2 : Macros Declarations *******************/
 
@@ -19,10 +19,18 @@
 
 /************** Section 4 : User Defined Data Types & Variables Declarations **************/
 
-extern NFC_Handle_t g_nfc_handle;
+
 
 /*************** Section 5 : Software Interfaces Declarations (APIs) ***************/
 
 Std_ReturnType ecual_init(void);
+
+/* Cooperative service for all initialized ECUAL components. Call frequently in main loop. */
+void ecual_task(void);
+
+/* Application-facing data/control APIs; component handles remain private to ECUAL. */
+Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out);
+Std_ReturnType ecual_hx711_tare(uint8 samples);
+bool ecual_hx711_get_weight_mg(int32 *weight_mg);
 
 #endif /* __ECUAL_INIT_H */

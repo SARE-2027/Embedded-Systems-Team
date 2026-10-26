@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "spi.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -112,6 +111,19 @@ static void print_gps_data(const sim7600_gps_data_t *gps)
 
   HAL_UART_Transmit(&huart2, (uint8_t *)"--------------------\r\n", 22, 100);
 }
+
+static void print_weight(int32_t weight_mg)
+{
+  char buffer[48];
+  int32_t abs_mg = (weight_mg < 0) ? -weight_mg : weight_mg;
+
+  /* Fixed-point: weight_mg / 1000 = grams */
+  snprintf(buffer, sizeof(buffer), "Weight: %c%ld.%03ld g\r\n",
+           (weight_mg < 0) ? '-' : ' ',
+           (long)(abs_mg / 1000),
+           (long)(abs_mg % 1000));
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, (uint16_t)strlen(buffer), 100);
+}
 /* USER CODE END 0 */
 
 /**
@@ -144,7 +156,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   /* Initialize ECUAL layer (SIM7600 GPS module on USART1) */
   if (E_OK != ecual_init())
@@ -157,29 +168,42 @@ int main(void)
     const char ok_msg[] = "ECUAL GPS Init OK. Starting standard sequence...\r\n";
     HAL_UART_Transmit(&huart2, (uint8_t *)ok_msg, (uint16_t)strlen(ok_msg), 100);
   }
+
+  /* Zero the load cell (cart must be empty at boot) */
+  if (E_OK != ecual_hx711_tare(10U))
+  {
+    const char tare_err[] = "HX711 tare FAILED! Check load cell wiring.\r\n";
+    HAL_UART_Transmit(&huart2, (uint8_t *)tare_err, (uint16_t)strlen(tare_err), 100);
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint32_t last_gps_report_tick = 0;
   sim7600_gps_data_t gps_data;
+  int32_t weight_mg = 0;
 
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* 1) Run GPS service task (non-blocking: assembles NMEA sentences and parses them) */
-    sim7600_gps_task();
+    /* Service initialized components through the ECUAL gateway (non-blocking). */
+    ecual_task();
 
     /* 2) Periodic report over UART2 every 1000 ms */
     if ((HAL_GetTick() - last_gps_report_tick) >= 1000U)
     {
       last_gps_report_tick = HAL_GetTick();
 
-      if (E_OK == sim7600_gps_get_data(&gps_data))
+      if (E_OK == ecual_gps_get_data(&gps_data))
       {
         print_gps_data(&gps_data);
+      }
+
+      if (ecual_hx711_get_weight_mg(&weight_mg))
+      {
+        print_weight(weight_mg);
       }
     }
   }
