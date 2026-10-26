@@ -164,8 +164,13 @@ const sim7600_port_config_t sim7600_port_default_config = {
 
 /* ---------------------------------------------------------------------------
  * CMSIS IRQn translation table (STM32F401 vector table):
- *   USART1 = 37, USART2 = 38, USART6 = 53
+ *   USART1 = 37 (USART1_IRQn), USART2 = 38 (USART2_IRQn), USART6 = 71 (USART6_IRQn)
  * ------------------------------------------------------------------------- */
+static IRQn_Type m_cmsis_irq_of(sim7600_uart_id_t id) {
+  static const IRQn_Type lut[3] = {USART1_IRQn, USART2_IRQn, USART6_IRQn};
+  return lut[(uint8)id];
+}
+
 static port_irq_id_t m_irq_of(sim7600_uart_id_t id) {
   static const port_irq_id_t lut[3] = {PORT_IRQ_USART1, PORT_IRQ_USART2,
                                        PORT_IRQ_USART6};
@@ -197,7 +202,7 @@ static uint32 m_sysclk_hz(void) {
     uint32 pll_m = (RCC->PLLCFGR & RCC_PLLCFGR_PLLM);       /* bits [5:0]   */
     uint32 pll_n = (RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> 6;  /* bits [14:6]  */
     uint32 pll_p = (RCC->PLLCFGR & RCC_PLLCFGR_PLLP) >> 16; /* bits [17:16]*/
-    uint32 pll_pdiv = (pll_p + 2UL); /* 00->2, 01->4, 10->6, 11->8 */
+    uint32 pll_pdiv = ((pll_p + 1UL) * 2UL); /* 00->2, 01->4, 10->6, 11->8 */
 
     if (0UL == pll_m) {
       pll_m = 1UL;
@@ -712,9 +717,9 @@ Std_ReturnType sim7600_port_init(const sim7600_port_config_t *cfg) {
   PORT_EXIT_CRITICAL(prim);
 
   /* === 9. NVIC === */
-  HAL_NVIC_SetPriority((IRQn_Type)(m_irq_of(cfg->uart_id)), cfg->nvic_priority,
+  HAL_NVIC_SetPriority(m_cmsis_irq_of(cfg->uart_id), cfg->nvic_priority,
                        0);
-  HAL_NVIC_EnableIRQ((IRQn_Type)(m_irq_of(cfg->uart_id)));
+  HAL_NVIC_EnableIRQ(m_cmsis_irq_of(cfg->uart_id));
 
   /* === 10. Register owned pins for future arbitration === */
   PORT_ENTER_CRITICAL(prim);
@@ -764,7 +769,7 @@ Std_ReturnType sim7600_port_deinit(sim7600_uart_id_t uart_id) {
   PORT_EXIT_CRITICAL(prim);
 
   /* Disable the NVIC line first so no late RX can re-enable it */
-  HAL_NVIC_DisableIRQ((IRQn_Type)(m_irq_of(uart_id)));
+  HAL_NVIC_DisableIRQ(m_cmsis_irq_of(uart_id));
 
   /* Peripheral reset + disable */
   u->CR1 = 0UL;

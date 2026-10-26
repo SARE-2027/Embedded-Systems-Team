@@ -1,3 +1,4 @@
+"./Core/Src/ECUAL/Hx711/hx711.o"
 "./Core/Src/ECUAL/SIM7600EH/sim7600_gps.o"
 "./Core/Src/ECUAL/SIM7600EH/sim7600_port.o"
 "./Core/Src/ECUAL/ecual_init.o"

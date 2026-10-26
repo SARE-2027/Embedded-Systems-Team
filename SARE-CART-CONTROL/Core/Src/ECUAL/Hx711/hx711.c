@@ -90,8 +90,13 @@ void hx711_task(hx711_t *h)
 
     /* The readiness check above ensures this read does not wait for a sample. */
     if (E_OK == hx711_get_weight_mg(h, 1U, &weight_mg)) {
-        h->latest_weight_mg = weight_mg;
-        h->latest_weight_valid = true;
+        if (!h->latest_weight_valid) {
+            h->latest_weight_mg = weight_mg;
+            h->latest_weight_valid = true;
+        } else {
+            /* EMA filter (70% previous + 30% new sample) to filter out cart chassis & motor vibrations */
+            h->latest_weight_mg = (int32)(((int64)h->latest_weight_mg * 7 + (int64)weight_mg * 3) / 10);
+        }
     }
 }
 
@@ -324,8 +329,9 @@ static void hx711_delay_us(uint32 us)
 {
     uint32 start  = DWT->CYCCNT;
     uint32 cycles = us * (SystemCoreClock / 1000000U);
+    volatile uint32 timeout = cycles * 10U + 50U;
 
-    while ((DWT->CYCCNT - start) < cycles) {
+    while (((DWT->CYCCNT - start) < cycles) && (--timeout > 0U)) {
         /* wait */
     }
 }

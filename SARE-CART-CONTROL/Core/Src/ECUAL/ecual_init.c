@@ -99,6 +99,14 @@ void ecual_task(void) {
     }
 }
 
+bool ecual_gps_is_ready(void) {
+    return m_gps_initialized;
+}
+
+bool ecual_hx711_is_ready(void) {
+    return m_hx711_initialized;
+}
+
 Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out) {
     if (!m_gps_initialized || (NULL == out)) {
         return E_NOT_OK;

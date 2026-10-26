@@ -29,6 +29,8 @@ Std_ReturnType ecual_init(void);
 void ecual_task(void);
 
 /* Application-facing data/control APIs; component handles remain private to ECUAL. */
+bool ecual_gps_is_ready(void);
+bool ecual_hx711_is_ready(void);
 Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out);
 Std_ReturnType ecual_hx711_tare(uint8 samples);
 bool ecual_hx711_get_weight_mg(int32 *weight_mg);

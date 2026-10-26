@@ -31,7 +31,9 @@ Core/Src/usart.o: ../Core/Src/usart.c ../Core/Inc/usart.h \
  ../Core/Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h \
  ../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h \
  ../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h \
- ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h
+ ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
+ ../Core/Inc/ECUAL/Hx711/hx711.h \
+ ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h
 ../Core/Inc/usart.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -67,3 +69,5 @@ Core/Src/usart.o: ../Core/Src/usart.c ../Core/Inc/usart.h \
 ../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h:
 ../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h:
 ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
+../Core/Inc/ECUAL/Hx711/hx711.h:
+../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h:
