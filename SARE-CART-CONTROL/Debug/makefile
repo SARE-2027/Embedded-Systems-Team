@@ -64,8 +64,8 @@ all: main-build
 main-build: SARE-CART-CONTROL.elf secondary-outputs
 
 # Tool invocations
-SARE-CART-CONTROL.elf SARE-CART-CONTROL.map: $(OBJS) $(USER_OBJS) /Users/mohamed-elahmady/Downloads/Embedded-Systems-Team/SARE-CART-CONTROL/STM32F401RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SARE-CART-CONTROL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/mohamed-elahmady/Downloads/Embedded-Systems-Team/SARE-CART-CONTROL/STM32F401RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SARE-CART-CONTROL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+SARE-CART-CONTROL.elf SARE-CART-CONTROL.map: $(OBJS) $(USER_OBJS) D:\Sare\Embedded-Systems-Team\SARE-CART-CONTROL\STM32F401RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "SARE-CART-CONTROL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Sare\Embedded-Systems-Team\SARE-CART-CONTROL\STM32F401RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SARE-CART-CONTROL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
