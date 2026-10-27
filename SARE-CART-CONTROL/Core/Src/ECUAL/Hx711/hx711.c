@@ -18,6 +18,10 @@
 #define HX711_DATA_BITS             (24U)
 #define HX711_PULSE_US              (1U)
 
+/* EMA filter: new = (old * (DEN-NUM) + sample * NUM) / DEN  -> 30 % new sample */
+#define HX711_EMA_NUM               (3)
+#define HX711_EMA_DEN               (10)
+
 /******************* Section 3 : Variables Definitions *******************/
 
 /* (none) */
@@ -42,7 +46,6 @@ Std_ReturnType hx711_init(hx711_t *h, const hx711_cfg_t *cfg)
         return E_NOT_OK;
     }
 
-    /* Resolve generic pin ids -> GPIO port + pin mask */
     h->sck_port  = hx711_port_of(cfg->sck_pin);
     h->sck_pin   = (uint16)(1U << (cfg->sck_pin & 0x0FU));
     h->dout_port = hx711_port_of(cfg->dout_pin);
@@ -56,6 +59,7 @@ Std_ReturnType hx711_init(hx711_t *h, const hx711_cfg_t *cfg)
     h->gain                 = cfg->gain;
     h->offset               = 0;
     h->scale_cpk            = 1;
+    h->latest_raw           = 0;
     h->latest_weight_mg     = 0;
     h->latest_weight_valid  = false;
 
@@ -68,7 +72,7 @@ Std_ReturnType hx711_init(hx711_t *h, const hx711_cfg_t *cfg)
     HAL_GPIO_Init(h->sck_port, &gpio);
     hx711_sck_low(h);
 
-    /* DOUT: input with pull-up (idles high while no conversion is ready) */
+    /* DOUT: input with pull-up */
     hx711_gpio_clk_enable(h->dout_port);
     gpio.Pin   = h->dout_pin;
     gpio.Mode  = GPIO_MODE_INPUT;
@@ -82,21 +86,29 @@ Std_ReturnType hx711_init(hx711_t *h, const hx711_cfg_t *cfg)
 
 void hx711_task(hx711_t *h)
 {
+    int32 raw;
     int32 weight_mg;
 
     if ((NULL == h) || !hx711_is_ready(h)) {
         return;
     }
 
-    /* The readiness check above ensures this read does not wait for a sample. */
-    if (E_OK == hx711_get_weight_mg(h, 1U, &weight_mg)) {
-        if (!h->latest_weight_valid) {
-            h->latest_weight_mg = weight_mg;
-            h->latest_weight_valid = true;
-        } else {
-            /* EMA filter (70% previous + 30% new sample) to filter out cart chassis & motor vibrations */
-            h->latest_weight_mg = (int32)(((int64)h->latest_weight_mg * 7 + (int64)weight_mg * 3) / 10);
-        }
+    /* Readiness was checked above, so this read does not wait. */
+    if (E_OK != hx711_read_raw(h, &raw, HX711_READ_TIMEOUT_MS)) {
+        return;
+    }
+
+    h->latest_raw = raw;
+
+    weight_mg = (int32)(((int64)(raw - h->offset) * 1000000) / (int64)h->scale_cpk);
+
+    if (!h->latest_weight_valid) {
+        h->latest_weight_mg    = weight_mg;
+        h->latest_weight_valid = true;
+    } else {
+        /* EMA filter to smooth chassis / motor vibration */
+        h->latest_weight_mg = (int32)(((int64)h->latest_weight_mg * (HX711_EMA_DEN - HX711_EMA_NUM) +
+                                       (int64)weight_mg * HX711_EMA_NUM) / HX711_EMA_DEN);
     }
 }
 
@@ -108,6 +120,23 @@ bool hx711_get_latest_weight_mg(const hx711_t *h, int32 *weight_mg)
 
     *weight_mg = h->latest_weight_mg;
     return true;
+}
+
+bool hx711_get_latest_raw(const hx711_t *h, int32 *raw)
+{
+    if ((NULL == h) || (NULL == raw) || !h->latest_weight_valid) {
+        return false;
+    }
+
+    *raw = h->latest_raw;
+    return true;
+}
+
+void hx711_reset_filter(hx711_t *h)
+{
+    if (NULL != h) {
+        h->latest_weight_valid = false;
+    }
 }
 
 bool hx711_is_ready(const hx711_t *h)
@@ -191,11 +220,12 @@ Std_ReturnType hx711_tare(hx711_t *h, uint8 samples)
 {
     int32 avg;
 
-    if (E_OK != hx711_read_average(h, samples, &avg)) {
+    if ((NULL == h) || (E_OK != hx711_read_average(h, samples, &avg))) {
         return E_NOT_OK;
     }
 
     h->offset = avg;
+    hx711_reset_filter(h);          /* drop stale filtered value */
     return E_OK;
 }
 
@@ -206,6 +236,7 @@ Std_ReturnType hx711_set_scale(hx711_t *h, int32 counts_per_kg)
     }
 
     h->scale_cpk = counts_per_kg;
+    hx711_reset_filter(h);
     return E_OK;
 }
 
@@ -216,6 +247,7 @@ Std_ReturnType hx711_set_offset(hx711_t *h, int32 offset)
     }
 
     h->offset = offset;
+    hx711_reset_filter(h);
     return E_OK;
 }
 
@@ -241,6 +273,7 @@ Std_ReturnType hx711_calibrate(hx711_t *h, uint32 known_weight_g, uint8 samples)
     }
 
     h->scale_cpk = (int32)scale;
+    hx711_reset_filter(h);
     return E_OK;
 }
 
@@ -248,7 +281,7 @@ Std_ReturnType hx711_get_counts(hx711_t *h, uint8 samples, int32 *counts)
 {
     int32 avg;
 
-    if (NULL == counts) {
+    if ((NULL == h) || (NULL == counts)) {
         return E_NOT_OK;
     }
 
@@ -264,7 +297,7 @@ Std_ReturnType hx711_get_weight_mg(hx711_t *h, uint8 samples, int32 *weight_mg)
 {
     int32 counts;
 
-    if (NULL == weight_mg) {
+    if ((NULL == h) || (NULL == weight_mg)) {
         return E_NOT_OK;
     }
 
@@ -285,6 +318,7 @@ Std_ReturnType hx711_set_gain(hx711_t *h, hx711_gain_t gain)
     }
 
     h->gain = gain;
+    hx711_reset_filter(h);
 
     /* One read clocks out the new gain pulse count; next sample uses it */
     return hx711_read_raw(h, &dummy, HX711_READ_TIMEOUT_MS);
@@ -311,6 +345,7 @@ Std_ReturnType hx711_power_up(hx711_t *h)
     }
 
     hx711_sck_low(h);
+    hx711_reset_filter(h);
 
     /* Chip resets to A/128 on wake-up; re-apply the stored gain with one dummy read. */
     return hx711_read_raw(h, &dummy, HX711_READ_TIMEOUT_MS);

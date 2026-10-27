@@ -38,6 +38,15 @@ Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out);
 Std_ReturnType ecual_hx711_tare(uint8 samples);
 bool ecual_hx711_get_weight_mg(int32 *weight_mg);
 
+/* zwdt el goz2 dah*/
+Std_ReturnType ecual_hx711_calibrate(uint32 known_weight_g, uint8 samples);   /* known weight on cell  */
+Std_ReturnType ecual_hx711_set_scale(int32 counts_per_kg);                    /* restore saved scale   */
+Std_ReturnType ecual_hx711_set_offset(int32 offset);                          /* restore saved offset  */
+Std_ReturnType ecual_hx711_get_scale(int32 *counts_per_kg);
+Std_ReturnType ecual_hx711_get_offset(int32 *offset);
+bool           ecual_hx711_get_raw(int32 *raw);
+/* zwdt el goz2 dah*/
+
 bool ecual_nfc_get_card(nfc_card_t *out_card);
 
 #endif /* __ECUAL_INIT_H */

@@ -17,6 +17,10 @@
 #define ECUAL_HX711_DOUT_PIN     (HX711_PIN(B, 1))
 #define ECUAL_HX711_GAIN         (HX711_GAIN_128)
 #define ECUAL_HX711_SCALE_CPK    (100000)       /* Raw counts per kg - PLACEHOLDER, run hx711_calibrate() */
+/* goz2 zayed*/
+#define ECUAL_HX711_AUTO_TARE    (1U)
+#define ECUAL_HX711_TARE_SAMPLES (10U)
+/* goz2 zayed*/
 
 /* NFC Module Pin & Hardware Mapping */
 #define ECUAL_NFC_SPI_ID         (NFC_SPI_1)
