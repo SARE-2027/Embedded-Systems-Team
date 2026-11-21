@@ -35,8 +35,10 @@ bool ecual_hx711_is_ready(void);
 bool ecual_nfc_is_ready(void);
 
 Std_ReturnType ecual_gps_get_data(sim7600_gps_data_t *out);
+Std_ReturnType ecual_gps_get_diag(sim7600_gps_diag_t *out);
 Std_ReturnType ecual_hx711_tare(uint8 samples);
 bool ecual_hx711_get_weight_mg(int32 *weight_mg);
+bool ecual_hx711_is_stable(void);
 
 /* zwdt el goz2 dah*/
 Std_ReturnType ecual_hx711_calibrate(uint32 known_weight_g, uint8 samples);   /* known weight on cell  */

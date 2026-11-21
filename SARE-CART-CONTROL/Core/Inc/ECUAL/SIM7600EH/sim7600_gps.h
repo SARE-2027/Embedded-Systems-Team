@@ -20,8 +20,8 @@
 #define SIM7600_GPS_LINE_MAX_BYTES       (160U)   /* NMEA limit is 82 chars; AT responses may be longer */
 
 /* --- AT Layer Timeouts --- */
-#define SIM7600_GPS_AT_TIMEOUT_MS        (2000UL)   /* Generic AT command exchange          */
-#define SIM7600_GPS_GNSS_ON_TIMEOUT_MS   (8000UL)   /* GNSS power-up sequence (module slow) */
+#define SIM7600_GPS_AT_TIMEOUT_MS        (1000UL)   /* Generic AT command exchange          */
+#define SIM7600_GPS_GNSS_ON_TIMEOUT_MS   (1000UL)   /* GNSS power-up: non-blocking init     */
 #define SIM7600_GPS_FIX_WAIT_TIMEOUT_MS  (60000UL)  /* Default wait_for_fix ceiling (TTFF)  */
 
 /* --- Boot Sequence (config-driven: swap command names here if a firmware
@@ -110,6 +110,21 @@ typedef struct {
     uint32 at_timeout_count;
 } sim7600_gps_stats_t;
 
+/* --- Comprehensive Diagnostic Snapshot --- */
+typedef struct {
+    uint32 rx_bytes;            /* Raw UART bytes received at port layer    */
+    uint32 hw_framing_errors;   /* UART framing errors (Baud mismatch)      */
+    uint32 hw_overrun;          /* UART hardware overruns                   */
+    uint32 nmea_sentences;      /* Valid parsed NMEA sentences              */
+    uint32 nmea_bad_checksum;   /* Dropped due to bad checksum              */
+    uint32 nmea_parse_errors;   /* Malformed fields                         */
+    uint32 at_ok_count;         /* Successful AT commands                   */
+    uint32 at_timeout_count;    /* AT timeouts                              */
+    bool   has_data;            /* True if at least one NMEA was processed  */
+    bool   has_fix;             /* True if 3D Fix is active (valid)         */
+    char   last_line[SIM7600_GPS_LINE_MAX_BYTES]; /* Last raw UART line     */
+} sim7600_gps_diag_t;
+
 /*
  * Default ready-to-use configuration:
  * binds the port layer default config (USART2 / PA2 / PA3 / 115200 per
@@ -153,6 +168,7 @@ Std_ReturnType sim7600_gps_get_raw_line(char *dst, uint16 dst_size);
 
 /* --- Diagnostics --- */
 Std_ReturnType sim7600_gps_get_stats(sim7600_gps_stats_t *out);
+Std_ReturnType sim7600_gps_get_diag(sim7600_gps_diag_t *out);
 Std_ReturnType sim7600_gps_reset_stats(void);
 
 #endif /* __SIM7600_GPS_H */

@@ -458,6 +458,8 @@ static void m_parse_gga(const char *line)
         int32 v = 0;
         if (m_dec_scaled(f8, n8, 2U, &v)) { d->alt_cm = v; }   /* meters*100 = cm */
     }
+
+    d->timestamp_ms = HAL_GetTick();
 }
 
 /* ---------------------------------------------------------------------------
@@ -705,6 +707,80 @@ static void m_parse_nmea(const char *line)
 }
 
 /* ---------------------------------------------------------------------------
+ * Parse SIM7600 Native +CGPSINFO response:
+ * +CGPSINFO: [lat],[N/S],[lon],[E/W],[date],[UTC time],[alt],[speed],[course]
+ * ------------------------------------------------------------------------- */
+static void m_parse_cgpsinfo(const char *line)
+{
+    sim7600_gps_data_t *d = &m_gps.data;
+    const char *p = strstr(line, "+CGPSINFO:");
+    if (!p) { return; }
+    p += 10;
+    while (' ' == *p) { p++; }
+
+    m_gps.stats.nmea_sentences++;
+    d->timestamp_ms = HAL_GetTick();
+
+    /* Extract up to 9 comma-separated fields */
+    char f[9][24];
+    memset(f, 0, sizeof(f));
+    for (uint8 i = 0U; (i < 9U) && (*p != '\0'); i++)
+    {
+        const char *start = p;
+        while ((*p != '\0') && (*p != ASCII_COMMA)) { p++; }
+        uint8 flen = (uint8)(p - start);
+        if ((flen > 0U) && (flen < 24U))
+        {
+            (void)strncpy(f[i], start, flen);
+            f[i][flen] = '\0';
+        }
+        if (ASCII_COMMA == *p) { p++; }
+    }
+
+    /* f[0]=lat, f[1]=N/S, f[2]=lon, f[3]=E/W, f[4]=date, f[5]=time, f[6]=alt, f[7]=spd, f[8]=crs */
+    if ((f[0][0] != '\0') && (f[1][0] != '\0') && (f[2][0] != '\0') && (f[3][0] != '\0'))
+    {
+        int32 lat = 0, lon = 0;
+        if (m_parse_latlon(f[0], (uint8)strlen(f[0]), 2U, f[1][0], &lat) &&
+            m_parse_latlon(f[2], (uint8)strlen(f[2]), 3U, f[3][0], &lon))
+        {
+            d->lat_e6 = lat;
+            d->lon_e6 = lon;
+            d->latlon_fresh = true;
+            d->valid = true;
+            d->fix_quality = 1U;
+        }
+    }
+    else
+    {
+        d->valid = false;
+    }
+
+    if (f[4][0] != '\0')
+    {
+        m_parse_date(f[4], (uint8)strlen(f[4]), d->utc_date, sizeof(d->utc_date));
+    }
+    if (f[5][0] != '\0')
+    {
+        m_parse_time(f[5], (uint8)strlen(f[5]), d->utc_time, sizeof(d->utc_time));
+    }
+    if (f[6][0] != '\0')
+    {
+        int32 alt = 0;
+        if (m_dec_scaled(f[6], (uint8)strlen(f[6]), 2U, &alt)) { d->alt_cm = alt; }
+    }
+    if (f[7][0] != '\0')
+    {
+        int32 spd = 0;
+        if (m_dec_scaled(f[7], (uint8)strlen(f[7]), 2U, &spd))
+        {
+            d->speed_ckmh = spd;
+            d->speed_cknots = (int32)(((uint32)spd * 1000UL) / 1852UL);
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------------
  * Completed-line dispatcher: NMEA vs AT-status vs informational
  * ------------------------------------------------------------------------- */
 static void m_process_line(void)
@@ -723,6 +799,12 @@ static void m_process_line(void)
     if (ASCII_DOLLAR == (uint8)l[0])
     {
         m_parse_nmea(l);
+        return;
+    }
+
+    if (NULL != strstr(l, "+CGPSINFO:"))
+    {
+        m_parse_cgpsinfo(l);
         return;
     }
 
@@ -867,47 +949,70 @@ bool sim7600_gps_is_init(void)
 
 void sim7600_gps_task(void)
 {
+    static uint32 last_poll_tick = 0;
+    static uint32 last_retry_tick = 0;
+
     if (!m_gps.init) { return; }
     m_pump();
+
+    uint32 now = HAL_GetTick();
+
+    /* 1. Poll live GPS information via AT+CGPSINFO every 1000 ms */
+    if ((now - last_poll_tick) >= 1000UL)
+    {
+        last_poll_tick = now;
+        (void)sim7600_gps_send_at("AT+CGPSINFO", NULL, 0U, 400UL);
+    }
+
+    /* 2. Auto-recovery: If no data received, ensure GNSS power is ON every 5000 ms */
+    if (0UL == m_gps.data.timestamp_ms)
+    {
+        if ((now - last_retry_tick) >= 5000UL)
+        {
+            last_retry_tick = now;
+            (void)sim7600_gps_gnss_on(500UL);
+        }
+    }
 }
 
 Std_ReturnType sim7600_gps_gnss_on(uint32 per_cmd_timeout_ms)
 {
-    Std_ReturnType ret = E_OK;
-
     if (!m_gps.init)
     {
         return E_NOT_OK;
     }
 
+    /* AT ping + echo-off: short timeout to avoid boot blocking */
 #if SIM7600_GPS_USE_ECHO_OFF
     if (!m_gps.echo_off_done)
     {
-        /* Send AT ping to sync autobaud detector on SIM7600 */
-        (void)sim7600_gps_send_at("AT", NULL, 0U, 300UL);
-        (void)sim7600_gps_send_at(SIM7600_GPS_CMD_ECHO_OFF, NULL, 0U, per_cmd_timeout_ms);
+        (void)sim7600_gps_send_at("AT",                    NULL, 0U, 300UL);
+        (void)sim7600_gps_send_at(SIM7600_GPS_CMD_ECHO_OFF, NULL, 0U, 300UL);
         m_gps.echo_off_done = true;
     }
 #endif
 
     (void)sim7600_port_rx_flush(m_gps.port_copy.uart_id);
 
-    /* Power on GNSS subsystem (Primary: AT+CGNSSPWR=1, Fallback: AT+CGPS=1) */
-    if (E_OK != sim7600_gps_send_at(SIM7600_GPS_CMD_GNSS_POWER_ON, NULL, 0U, per_cmd_timeout_ms))
+    /* Check if GPS is already running - skip power-on if already active */
+    char q_resp[64] = {0};
+    if (E_OK == sim7600_gps_send_at("AT+CGPS?", q_resp, sizeof(q_resp), 500UL))
     {
-        if (E_OK != sim7600_gps_send_at("AT+CGPS=1", NULL, 0U, per_cmd_timeout_ms))
+        if (strstr(q_resp, "+CGPS: 1") != NULL)
         {
-            ret = E_NOT_OK;
+            /* Already on - nothing more to do */
+            return E_OK;
         }
     }
 
-    /* Route NMEA to UART (Primary: AT+CGNSSTST=1, Fallback: AT+CGPSNMEA=31) */
-    if (E_OK != sim7600_gps_send_at(SIM7600_GPS_CMD_NMEA_OUT_ON, NULL, 0U, per_cmd_timeout_ms))
-    {
-        (void)sim7600_gps_send_at("AT+CGPSNMEA=31", NULL, 0U, per_cmd_timeout_ms);
-    }
+    /* Power on GNSS subsystem (Standalone mode) */
+    (void)sim7600_gps_send_at("AT+CGPS=1,1", NULL, 0U, per_cmd_timeout_ms);
+    (void)sim7600_gps_send_at("AT+CGPS=1",   NULL, 0U, per_cmd_timeout_ms);
 
-    return ret;
+    /* Try enabling streaming NMEA if supported by firmware */
+    (void)sim7600_gps_send_at("AT+CGNSTST=1", NULL, 0U, 300UL);
+
+    return E_OK;
 }
 
 Std_ReturnType sim7600_gps_gnss_off(uint32 per_cmd_timeout_ms)
@@ -1042,6 +1147,42 @@ Std_ReturnType sim7600_gps_get_data(sim7600_gps_data_t *out)
 bool sim7600_gps_fix_valid(void)
 {
     return (m_gps.init && m_gps.data.valid);
+}
+
+Std_ReturnType sim7600_gps_get_diag(sim7600_gps_diag_t *out)
+{
+    if (!m_gps.init || (NULL == out))
+    {
+        return E_NOT_OK;
+    }
+
+    memset(out, 0, sizeof(*out));
+
+    /* 1. Fetch hardware UART port statistics */
+    sim7600_port_stats_t port_stats;
+    if (E_OK == sim7600_port_get_stats(m_gps.port_copy.uart_id, &port_stats))
+    {
+        out->rx_bytes          = port_stats.rx_bytes;
+        out->hw_framing_errors = port_stats.hw_framing_errors;
+        out->hw_overrun        = port_stats.hw_overrun;
+    }
+
+    /* 2. Layer parser & AT statistics */
+    out->nmea_sentences    = m_gps.stats.nmea_sentences;
+    out->nmea_bad_checksum = m_gps.stats.nmea_bad_checksum;
+    out->nmea_parse_errors = m_gps.stats.nmea_parse_errors;
+    out->at_ok_count       = m_gps.stats.at_ok_count;
+    out->at_timeout_count  = m_gps.stats.at_timeout_count;
+
+    /* 3. Status flags */
+    out->has_data = (m_gps.stats.nmea_sentences > 0UL) || (m_gps.data.timestamp_ms > 0UL);
+    out->has_fix  = m_gps.data.valid;
+
+    /* 4. Last raw UART line */
+    (void)strncpy(out->last_line, m_gps.last_line, sizeof(out->last_line) - 1U);
+    out->last_line[sizeof(out->last_line) - 1U] = '\0';
+
+    return E_OK;
 }
 
 Std_ReturnType sim7600_gps_get_raw_line(char *dst, uint16 dst_size)
