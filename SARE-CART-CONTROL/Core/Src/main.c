@@ -57,14 +57,50 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static volatile uint32_t s_total_button_presses = 0;
+static volatile uint16_t s_button_taps_in_window = 0;
+static const char *s_last_button_event_str = "NONE";
+
+static void on_button_event(struct button_s *btn, button_event_t event, void *user_data) {
+  (void)btn;
+  (void)user_data;
+
+  switch (event) {
+  case BUTTON_EVENT_PRESSED:
+    s_total_button_presses++;
+    s_button_taps_in_window++;
+    s_last_button_event_str = "PRESSED";
+    break;
+
+  case BUTTON_EVENT_RELEASED:
+    s_last_button_event_str = "RELEASED";
+    break;
+
+  case BUTTON_EVENT_CLICK:
+    s_last_button_event_str = "CLICK";
+    break;
+
+  case BUTTON_EVENT_DOUBLE_CLICK:
+    s_last_button_event_str = "DOUBLE_CLICK";
+    break;
+
+  case BUTTON_EVENT_LONG_PRESS:
+    s_last_button_event_str = "LONG_PRESS";
+    break;
+
+  default:
+    break;
+  }
+}
+
 static void print_telemetry_report(const sim7600_gps_data_t *gps,
                                    bool gps_has_data,
                                    const sim7600_gps_diag_t *gps_diag,
                                    const nfc_card_t *nfc, bool nfc_has_card,
                                    int32_t weight_mg, bool weight_has_data,
-                                   bool weight_is_stable,
-                                   int32_t raw_counts, int32_t tare_offset) {
-  char report[896];
+                                   bool weight_is_stable, int32_t raw_counts,
+                                   int32_t tare_offset) {
+  char report[1024];
   int len = 0;
 
   /* Header & 1. GPS Reads */
@@ -140,7 +176,22 @@ static void print_telemetry_report(const sim7600_gps_data_t *gps,
   len +=
       snprintf(report + len, sizeof(report) - len, "\r\n--- NFC Reads ---\r\n");
 
-  if (nfc_has_card && (len < (int)sizeof(report))) {
+  if (!ecual_nfc_is_ready()) {
+    nfc_error_t nfc_err = NFC_ERR_NONE;
+    (void)ecual_nfc_get_error(&nfc_err);
+    const char *err_str = "TIMEOUT";
+    switch (nfc_err) {
+      case NFC_ERR_TIMEOUT: err_str = "TIMEOUT (No Response on SPI)"; break;
+      case NFC_ERR_NO_ACK:  err_str = "NO ACK"; break;
+      case NFC_ERR_FRAME:   err_str = "BAD FRAME / WRONG IC"; break;
+      case NFC_ERR_BUS:     err_str = "SPI BUS ERROR"; break;
+      default:              err_str = "INIT FAILED"; break;
+    }
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Hardware   : OFFLINE [Error: %s]\r\n"
+                    "Hint       : Check SPI DIP Switch (SEL0=0, SEL1=1) & Wiring\r\n",
+                    err_str);
+  } else if (nfc_has_card && (len < (int)sizeof(report))) {
     len += snprintf(report + len, sizeof(report) - len,
                     "Card Status: CARD DETECTED\r\n"
                     "UID Length : %u bytes\r\n"
@@ -164,7 +215,10 @@ static void print_telemetry_report(const sim7600_gps_data_t *gps,
   len += snprintf(report + len, sizeof(report) - len,
                   "\r\n--- Load Cell Reads ---\r\n");
 
-  if (weight_has_data && (len < (int)sizeof(report))) {
+  if (!ecual_hx711_is_ready()) {
+    len += snprintf(report + len, sizeof(report) - len,
+                    "Status     : OFFLINE (Not Connected on PB0/PB1)\r\n");
+  } else if (weight_has_data && (len < (int)sizeof(report))) {
     if (weight_mg < 0) {
       weight_mg = 0;
     }
@@ -173,14 +227,63 @@ static void print_telemetry_report(const sim7600_gps_data_t *gps,
                     "Weight     : %ld.%03ld g (%ld mg)\r\n"
                     "RAW Counts : %ld | Offset: %ld | Net RAW: %ld\r\n"
                     "Status     : %s\r\n",
-                    (long)(weight_mg / 1000),
-                    (long)(weight_mg % 1000), (long)weight_mg,
-                    (long)raw_counts, (long)tare_offset, (long)net_raw,
-                    weight_is_stable ? "STABLE (Anti-Creep Active)" : "SETTLING (Tracking...)");
+                    (long)(weight_mg / 1000), (long)(weight_mg % 1000),
+                    (long)weight_mg, (long)raw_counts, (long)tare_offset,
+                    (long)net_raw,
+                    weight_is_stable ? "STABLE (Anti-Creep Active)"
+                                     : "SETTLING (Tracking...)");
   } else {
+    uint8_t dout_pin_val = (GPIOB->IDR & GPIO_PIN_1) ? 1 : 0;
     len += snprintf(report + len, sizeof(report) - len,
-                    "Status     : WAITING FOR LOAD CELL SAMPLES...\r\n");
+                    "Status     : WAITING FOR LOAD CELL SAMPLES...\r\n"
+                    "Pin Diag   : DOUT (PB1) = %u (%s) | SCK (PB0) = %u\r\n",
+                    dout_pin_val,
+                    (dout_pin_val == 0) ? "PULSING / READY"
+                                        : "HIGH (Check DT/SCK wiring & Power)",
+                    (GPIOB->ODR & GPIO_PIN_0) ? 1 : 0);
   }
+
+  /* 4. Actuators Reads & Status */
+  rgb_color_val_t rgb_val = {0};
+  (void)ecual_rgb_get_rgb(&rgb_val);
+  const char *color_name = "OFF";
+  if (rgb_val.r == 255 && rgb_val.g == 0 && rgb_val.b == 0) {
+    color_name = "RED (PB7)";
+  } else if (rgb_val.r == 0 && rgb_val.g == 255 && rgb_val.b == 0) {
+    color_name = "GREEN (PB8)";
+  } else if (rgb_val.r == 0 && rgb_val.g == 0 && rgb_val.b == 255) {
+    color_name = "BLUE (PB9)";
+  } else if (rgb_val.r == 255 && rgb_val.g == 255 && rgb_val.b == 255) {
+    color_name = "WHITE (PB7+PB8+PB9)";
+  } else if (rgb_val.r > 0 || rgb_val.g > 0 || rgb_val.b > 0) {
+    color_name = "ACTIVE";
+  }
+
+  bool currently_pressed = ecual_button_is_pressed();
+  uint16_t window_taps = s_button_taps_in_window;
+  s_button_taps_in_window = 0; /* Clear accumulator for next periodic frame */
+
+  const char *btn_state_str;
+  if (currently_pressed) {
+    btn_state_str = "HELD DOWN (LOW)";
+  } else if (window_taps > 0) {
+    btn_state_str = "CLICKED (RELEASED)";
+  } else {
+    btn_state_str = "RELEASED (HIGH)";
+  }
+
+  len += snprintf(report + len, sizeof(report) - len,
+                  "\r\n--- Actuators Reads ---\r\n"
+                  "RGB LED    : %s [R:%u, G:%u, B:%u]\r\n"
+                  "Buzzer     : %s (Pin PB10)\r\n"
+                  "Button     : Status: %s | Taps in Frame: %u | Total Presses: %lu | Last Event: %s\r\n",
+                  color_name, (unsigned int)rgb_val.r, (unsigned int)rgb_val.g,
+                  (unsigned int)rgb_val.b,
+                  ecual_buzzer_is_busy() ? "BEEPING / ACTIVE" : "IDLE",
+                  btn_state_str,
+                  (unsigned int)window_taps,
+                  (unsigned long)s_total_button_presses,
+                  s_last_button_event_str);
 
   len += snprintf(report + len, sizeof(report) - len,
                   "========================================\r\n");
@@ -223,25 +326,31 @@ int main(void) {
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  /* Initialize ECUAL layer (SIM7600 GPS on USART1, NFC on SPI1, HX711 on
-   * PB0/PB1) */
+  /* Initialize ECUAL layer (GPS, NFC, HX711, RGB LED, Buzzer, Button) */
   if (E_OK != ecual_init()) {
-    char boot_msg[128];
+    char boot_msg[160];
     snprintf(boot_msg, sizeof(boot_msg),
-             "ECUAL Init Warning: GPS=%s, NFC=%s, HX711=%s\r\n",
+             "ECUAL Init: GPS=%s, NFC=%s, HX711=%s, RGB=%s, BZ=%s, BTN=%s\r\n",
              ecual_gps_is_ready() ? "OK" : "FAIL",
              ecual_nfc_is_ready() ? "OK" : "FAIL",
-             ecual_hx711_is_ready() ? "OK" : "FAIL");
+             ecual_hx711_is_ready() ? "OK" : "FAIL",
+             ecual_rgb_led_is_ready() ? "OK" : "FAIL",
+             ecual_buzzer_is_ready() ? "OK" : "FAIL",
+             ecual_button_is_ready() ? "OK" : "FAIL");
     HAL_UART_Transmit(&huart2, (uint8_t *)boot_msg, (uint16_t)strlen(boot_msg),
                       100);
   } else {
     const char ok_msg[] =
-        "ECUAL Init OK: GPS, NFC & Load Cell modules online.\r\n";
+        "ECUAL Init OK: All 6 Modules Online (GPS, NFC, Load Cell, RGB, Buzzer, Button).\r\n";
     HAL_UART_Transmit(&huart2, (uint8_t *)ok_msg, (uint16_t)strlen(ok_msg),
                       100);
   }
 
-  /* Wait 400ms for HX711 analog bandgap & power supply to settle before taring */
+  /* Register button interactive event callback */
+  ecual_button_set_callback(on_button_event, NULL);
+
+  /* Wait 400ms for HX711 analog bandgap & power supply to settle before taring
+   */
   HAL_Delay(400);
 
   /* Zero the load cell: 8 samples at boot (~800ms) */
@@ -250,8 +359,7 @@ int main(void) {
       const char tare_err[] = "HX711 tare FAILED! Check load cell wiring.\r\n";
       HAL_UART_Transmit(&huart2, (uint8_t *)tare_err,
                         (uint16_t)strlen(tare_err), 100);
-    }
-    else {
+    } else {
       const char tare_ok[] = "HX711 tare OK.\r\n";
       HAL_UART_Transmit(&huart2, (uint8_t *)tare_ok, (uint16_t)strlen(tare_ok),
                         100);
@@ -276,9 +384,46 @@ int main(void) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* Service initialized components through the ECUAL gateway (non-blocking).
-     */
+    /* Service initialized components through the ECUAL gateway (non-blocking). */
     ecual_task();
+
+    /* Actuator Test Sequence (every 1500 ms):
+     * Step 0: RED   (PB7)           + 50ms Beep (PB10)
+     * Step 1: GREEN (PB8)           + 50ms Beep (PB10)
+     * Step 2: BLUE  (PB9)           + 50ms Beep (PB10)
+     * Step 3: WHITE (PB7, PB8, PB9) + 50ms Beep (PB10)
+     * Step 4: OFF
+     */
+    static uint32_t last_actuator_test_tick = 0;
+    static uint8_t actuator_test_step = 0;
+    if ((HAL_GetTick() - last_actuator_test_tick) >= 1500U) {
+      last_actuator_test_tick = HAL_GetTick();
+
+      switch (actuator_test_step) {
+      case 0:
+        (void)ecual_rgb_set_color(RGB_COLOR_RED);
+        (void)ecual_buzzer_beep(50U);
+        break;
+      case 1:
+        (void)ecual_rgb_set_color(RGB_COLOR_GREEN);
+        (void)ecual_buzzer_beep(50U);
+        break;
+      case 2:
+        (void)ecual_rgb_set_color(RGB_COLOR_BLUE);
+        (void)ecual_buzzer_beep(50U);
+        break;
+      case 3:
+        (void)ecual_rgb_set_color(RGB_COLOR_WHITE);
+        (void)ecual_buzzer_beep(50U);
+        break;
+      case 4:
+      default:
+        (void)ecual_rgb_turn_off();
+        break;
+      }
+
+      actuator_test_step = (actuator_test_step + 1) % 5;
+    }
 
     /* Periodic report over UART2 every 500 ms */
     if ((HAL_GetTick() - last_report_tick) >= 500U) {
@@ -297,8 +442,8 @@ int main(void) {
       (void)ecual_hx711_get_offset(&tare_offset);
 
       print_telemetry_report(&gps_data, gps_ok, &gps_diag, &nfc_card, nfc_ok,
-                             weight_mg, weight_ok, weight_stable,
-                             raw_counts, tare_offset);
+                             weight_mg, weight_ok, weight_stable, raw_counts,
+                             tare_offset);
     }
   }
   /* USER CODE END 3 */

@@ -1,5 +1,8 @@
+"./Core/Src/ECUAL/Button/button.o"
+"./Core/Src/ECUAL/Buzzer/buzzer.o"
 "./Core/Src/ECUAL/Hx711/hx711.o"
 "./Core/Src/ECUAL/NFC/nfc.o"
+"./Core/Src/ECUAL/RGB_LED/rgb_led.o"
 "./Core/Src/ECUAL/SIM7600EH/sim7600_gps.o"
 "./Core/Src/ECUAL/SIM7600EH/sim7600_port.o"
 "./Core/Src/ECUAL/ecual_init.o"

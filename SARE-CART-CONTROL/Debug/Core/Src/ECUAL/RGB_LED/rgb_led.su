@@ -1,0 +1,14 @@
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:60:16:rgb_led_init	48	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:111:16:rgb_led_set_color	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:127:16:rgb_led_set_rgb	24	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:143:16:rgb_led_set_brightness	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:160:16:rgb_led_off	24	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:175:16:rgb_led_toggle	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:195:13:rgb_led_get_color	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:203:16:rgb_led_get_rgb	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:212:6:rgb_led_task	32	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:244:22:rgb_led_port_of	16	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:257:13:rgb_led_gpio_clk_enable	40	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:268:13:rgb_led_update_active_val	24	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:280:13:rgb_led_write_channel	24	static
+../Core/Src/ECUAL/RGB_LED/rgb_led.c:300:13:rgb_led_apply_static	16	static
