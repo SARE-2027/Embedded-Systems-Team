@@ -27,16 +27,22 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Inc/ECUAL/ecual_init.h \
  ../Core/Inc/ECUAL/../MCAL/mcal_std_types.h \
- ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
- ../Core/Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h \
- ../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h \
- ../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h \
- ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
  ../Core/Inc/ECUAL/Hx711/hx711.h \
  ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h \
  ../Core/Inc/ECUAL/NFC/nfc.h \
- ../Core/Inc/ECUAL/NFC/../../MCAL/mcal_std_types.h ../Core/Inc/usart.h \
- ../Core/Inc/main.h ../Core/Inc/gpio.h
+ ../Core/Inc/ECUAL/NFC/../../MCAL/mcal_std_types.h \
+ ../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h \
+ ../Core/Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h \
+ ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
+ ../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h \
+ ../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h \
+ ../Core/Inc/ECUAL/RGB_LED/rgb_led.h \
+ ../Core/Inc/ECUAL/RGB_LED/../../MCAL/mcal_std_types.h \
+ ../Core/Inc/ECUAL/Buzzer/buzzer.h \
+ ../Core/Inc/ECUAL/Buzzer/../../MCAL/mcal_std_types.h \
+ ../Core/Inc/ECUAL/Button/button.h \
+ ../Core/Inc/ECUAL/Button/../../MCAL/mcal_std_types.h ../Core/Inc/gpio.h \
+ ../Core/Inc/main.h ../Core/Inc/usart.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -66,15 +72,21 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Core/Inc/ECUAL/ecual_init.h:
 ../Core/Inc/ECUAL/../MCAL/mcal_std_types.h:
-../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
-../Core/Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h:
-../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h:
-../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h:
-../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
 ../Core/Inc/ECUAL/Hx711/hx711.h:
 ../Core/Inc/ECUAL/Hx711/../../MCAL/mcal_std_types.h:
 ../Core/Inc/ECUAL/NFC/nfc.h:
 ../Core/Inc/ECUAL/NFC/../../MCAL/mcal_std_types.h:
-../Core/Inc/usart.h:
-../Core/Inc/main.h:
+../Core/Inc/ECUAL/SIM7600EH/sim7600_gps.h:
+../Core/Inc/ECUAL/SIM7600EH/../../MCAL/mcal_std_types.h:
+../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
+../Core/Inc/ECUAL/SIM7600EH/sim7600_port_cfg.h:
+../Core/Inc/ECUAL/SIM7600EH/sim7600_port.h:
+../Core/Inc/ECUAL/RGB_LED/rgb_led.h:
+../Core/Inc/ECUAL/RGB_LED/../../MCAL/mcal_std_types.h:
+../Core/Inc/ECUAL/Buzzer/buzzer.h:
+../Core/Inc/ECUAL/Buzzer/../../MCAL/mcal_std_types.h:
+../Core/Inc/ECUAL/Button/button.h:
+../Core/Inc/ECUAL/Button/../../MCAL/mcal_std_types.h:
 ../Core/Inc/gpio.h:
+../Core/Inc/main.h:
+../Core/Inc/usart.h:

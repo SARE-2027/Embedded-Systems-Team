@@ -12,8 +12,11 @@ RM := rm -rf
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/ECUAL/SIM7600EH/subdir.mk
+-include Core/Src/ECUAL/RGB_LED/subdir.mk
 -include Core/Src/ECUAL/NFC/subdir.mk
 -include Core/Src/ECUAL/Hx711/subdir.mk
+-include Core/Src/ECUAL/Buzzer/subdir.mk
+-include Core/Src/ECUAL/Button/subdir.mk
 -include Core/Src/ECUAL/subdir.mk
 -include Core/Src/subdir.mk
 -include objects.mk
@@ -64,8 +67,8 @@ all: main-build
 main-build: SARE-CART-CONTROL.elf secondary-outputs
 
 # Tool invocations
-SARE-CART-CONTROL.elf SARE-CART-CONTROL.map: $(OBJS) $(USER_OBJS) D:\Sare\Embedded-Systems-Team\SARE-CART-CONTROL\STM32F401RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SARE-CART-CONTROL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Sare\Embedded-Systems-Team\SARE-CART-CONTROL\STM32F401RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SARE-CART-CONTROL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+SARE-CART-CONTROL.elf SARE-CART-CONTROL.map: $(OBJS) $(USER_OBJS) /Users/mohamed-elahmady/Downloads/Embedded-Systems-Team/SARE-CART-CONTROL/STM32F401RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "SARE-CART-CONTROL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/mohamed-elahmady/Downloads/Embedded-Systems-Team/SARE-CART-CONTROL/STM32F401RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SARE-CART-CONTROL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

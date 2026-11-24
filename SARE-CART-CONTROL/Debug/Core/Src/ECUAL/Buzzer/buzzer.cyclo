@@ -1,0 +1,16 @@
+../Core/Src/ECUAL/Buzzer/buzzer.c:60:22:buzzer_port_of	7
+../Core/Src/ECUAL/Buzzer/buzzer.c:74:15:buzzer_pin_of	1
+../Core/Src/ECUAL/Buzzer/buzzer.c:80:13:buzzer_enable_gpio_clk	7
+../Core/Src/ECUAL/Buzzer/buzzer.c:96:13:buzzer_enable_tim_clk	10
+../Core/Src/ECUAL/Buzzer/buzzer.c:125:14:buzzer_get_tim_af	10
+../Core/Src/ECUAL/Buzzer/buzzer.c:155:13:buzzer_pin_write	5
+../Core/Src/ECUAL/Buzzer/buzzer.c:167:13:buzzer_hw_pwm_set_freq	10
+../Core/Src/ECUAL/Buzzer/buzzer.c:203:13:buzzer_apply_note	4
+../Core/Src/ECUAL/Buzzer/buzzer.c:222:16:buzzer_init	13
+../Core/Src/ECUAL/Buzzer/buzzer.c:295:16:buzzer_beep	3
+../Core/Src/ECUAL/Buzzer/buzzer.c:311:16:buzzer_play_tone	3
+../Core/Src/ECUAL/Buzzer/buzzer.c:324:16:buzzer_play_melody	5
+../Core/Src/ECUAL/Buzzer/buzzer.c:347:16:buzzer_play_preset	8
+../Core/Src/ECUAL/Buzzer/buzzer.c:384:16:buzzer_stop	2
+../Core/Src/ECUAL/Buzzer/buzzer.c:399:6:buzzer_is_busy	4
+../Core/Src/ECUAL/Buzzer/buzzer.c:407:6:buzzer_task	7
